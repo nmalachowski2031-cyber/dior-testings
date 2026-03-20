@@ -21,6 +21,7 @@
     input { flex:1; padding:10px; border-radius:4px; border:none; background:#303339; color:white; }
     button { margin-left:10px; padding:10px 16px; border-radius:4px; border:none; background:#7289da; color:white; cursor:pointer; }
     .typing-indicator { font-size:12px; color:#b9bbbe; margin-left:5px; font-style:italic; }
+    .mute-status { color: #ff6b6b; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -73,7 +74,9 @@
         xp: 0,
         level: 1,
         coins: 0,
-        owned_snake: false
+        owned_snake: false,
+        muted_until: null,
+        mute_reason: null
       });
 
 
@@ -126,6 +129,21 @@
         }
 
 
+        // Check if user is muted before sending
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("muted_until")
+          .eq("username", username)
+          .single();
+
+
+        const isMuted = profile?.muted_until && new Date(profile.muted_until) > new Date();
+        if (isMuted) {
+          alert("You are muted and cannot send messages!");
+          return;
+        }
+
+
         addMessage(username, text);
 
 
@@ -149,9 +167,9 @@
 
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("username,xp,level,coins,owned_snake")
+          .select("username,xp,level,coins,owned_snake,muted_until,mute_reason")
           .eq("username", username)
-          .maybeSingle();
+          .single();
 
 
         container.innerHTML = "";
@@ -164,15 +182,22 @@
 
 
         const xpToNext = profile.level * 100 - profile.xp;
+        const isMuted = profile.muted_until && new Date(profile.muted_until) > new Date();
+        const muteStatus = isMuted ? 
+          `<span class="mute-status">🔇 MUTED until ${new Date(profile.muted_until).toLocaleString()}<br><em>${profile.mute_reason || 'No reason specified'}</em></span>` : 
+          '✅ Not muted';
+
+
         const statsDiv = document.createElement("div");
         statsDiv.className = "message";
         statsDiv.innerHTML = `
-          <strong>Username:</strong> ${profile.username}<br>
-          <strong>Level:</strong> ${profile.level}<br>
-          <strong>XP:</strong> ${profile.xp}<br>
+          <strong>👤 ${profile.username}</strong><br>
+          <strong>⭐ Level:</strong> ${profile.level}<br>
+          <strong>⚡ XP:</strong> ${profile.xp}<br>
           <strong>XP to next level:</strong> ${xpToNext}<br>
-          <strong>Coins:</strong> ${profile.coins}<br>
-          <strong>Owns Snake:</strong> ${profile.owned_snake ? "Yes" : "No"}
+          <strong>💰 Coins:</strong> ${profile.coins}<br>
+          <strong>🐍 Owns Snake:</strong> ${profile.owned_snake ? "Yes" : "No"}<br>
+          <strong>🔇 Mute Status:</strong> ${muteStatus}
         `;
         container.appendChild(statsDiv);
       }
@@ -256,7 +281,7 @@
           .from("profiles")
           .select("coins, owned_snake")
           .eq("username", username)
-          .maybeSingle();
+          .single();
 
 
         container.innerHTML = "";
@@ -292,7 +317,7 @@
               .from("profiles")
               .select("coins, owned_snake")
               .eq("username", username)
-              .maybeSingle();
+              .single();
             if (!p) return;
 
 
@@ -330,6 +355,29 @@
       }
 
 
+      async function openProfileEditor() {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, bio, muted_until, mute_reason')
+          .eq('username', username)
+          .single();
+
+
+        const muteInfo = profile.muted_until && new Date(profile.muted_until) > new Date() ? 
+          `🔇 MUTED until ${new Date(profile.muted_until).toLocaleString()}\\nReason: ${profile.mute_reason || 'No reason'}` : 
+          '✅ Not muted';
+
+
+        const newBio = prompt(`Your Profile:\\n\\nUsername: ${profile.username}\\nBio: ${profile.bio || 'None'}\\nMute Status:\\n${muteInfo}\\n\\nEnter NEW bio (leave blank to keep current):`);
+        
+        if (newBio !== null) {
+          await supabase.from('profiles').update({ bio: newBio || null }).eq('username', username);
+          if (currentChannel === 'stats') await loadStats();
+          alert('Profile updated!');
+        }
+      }
+
+
       function switchChannel(channel) {
         currentChannel = channel;
         document.getElementById("channelName").innerText =
@@ -356,24 +404,6 @@
         } else {
           loadMessagesForChannel(channel);
         }
-      }
-
-
-      async function openProfileEditor() {
-        const newUsername = prompt("Enter your new username:");
-        if (!newUsername) return;
-
-
-        await supabase.from("profiles").update({ username: newUsername }).eq("username", username);
-        await supabase.from("messages").update({ username: newUsername }).eq("username", username);
-        await supabase.from("dms").update({ sender: newUsername }).eq("sender", username);
-        await supabase.from("dms").update({ receiver: newUsername }).eq("receiver", username);
-
-
-        localStorage.setItem("username", newUsername);
-        username = newUsername;
-        alert("Username updated! Reloading...");
-        location.reload();
       }
 
 
