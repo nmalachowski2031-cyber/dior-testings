@@ -115,18 +115,16 @@
           return;
         }
 
-        // Read muted_until *and* mute_reason from Supabase
+        // FIXED: Check if muted_until is not null (permanent mute until cleared)
         const { data: profile } = await supabase
           .from("profiles")
           .select("muted_until, mute_reason")
           .eq("username", username)
           .single();
 
-        const now = new Date();
-        const isMuted = profile?.muted_until && new Date(profile.muted_until) > now;
+        const isMuted = profile?.muted_until !== null;
         if (isMuted) {
           const reason = profile.mute_reason || "No reason specified";
-          // Popup now shows the mute reason from Supabase
           alert(`You are muted and cannot send messages!\n\nReason: ${reason}`);
           return;
         }
@@ -168,10 +166,11 @@
         }
 
         const xpToNext = profile.level * 100 - profile.xp;
-        const isMuted = profile.muted_until && new Date(profile.muted_until) > new Date();
-        const muteStatus = isMuted ? 
-          `<span class="mute-status">🔇 MUTED until ${new Date(profile.muted_until).toLocaleString()}<br><em>${profile.mute_reason || 'No reason specified'}</em></span>` : 
-          '✅ Not muted';
+        // FIXED: Check if muted_until is not null (permanent mute until cleared)
+        const isMuted = profile.muted_until !== null;
+        const muteStatus = isMuted 
+          ? `<span class="mute-status">🔇 MUTED (until cleared)<br><em>${profile.mute_reason || 'No reason specified'}</em></span>` 
+          : '✅ Not muted';
 
         const statsDiv = document.createElement("div");
         statsDiv.className = "message";
