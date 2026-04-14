@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Discord</title>
-  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="icon" href="favicon.png" type="image/png" />
   <style>
     body { margin:0; font-family:'Segoe UI',sans-serif; background:#36393f; color:white; display:flex; height:100vh; }
     .sidebar { width:240px; background:#2f3136; padding:15px; display:flex; flex-direction:column; }
@@ -16,15 +17,47 @@
     .header { padding:15px; background:#2f3136; font-weight:bold; border-bottom:1px solid #202225; }
     .messages { flex:1; padding:20px; overflow-y:auto; }
     .message { margin-bottom:10px; }
+    .message-row { display:flex; align-items:flex-start; gap:8px; }
+    .avatar { width:32px; height:32px; border-radius:50%; object-fit:cover; background:#5865f2; flex-shrink:0; margin-top:2px; border:1px solid rgba(255,255,255,0.15); }
+    .message-content { line-height:1.35; }
     .username { font-weight:bold; cursor:pointer; color:#7289da; }
     .username:hover { text-decoration:underline; }
     .input-area { padding:10px 15px; background:#40444b; display:flex; }
     input { flex:1; padding:10px; border-radius:4px; border:none; background:#303339; color:white; }
     button { margin-left:10px; padding:10px 16px; border-radius:4px; border:none; background:#7289da; color:white; cursor:pointer; }
     .typing-indicator { font-size:12px; color:#b9bbbe; margin-left:5px; font-style:italic; }
-    .mute-status { color: #ff6b6b; font-weight: bold; }
+    .mute-status { color:#ff6b6b; font-weight:bold; }
     button.shop-btn { background:#43b581; margin:5px 0; padding:8px 16px; }
     button.shop-btn:hover { background:#3da674; }
+    .profile-upload {
+      margin-top:12px;
+      padding:10px;
+      background:#2f3136;
+      border-radius:8px;
+      border:1px solid #202225;
+    }
+    .profile-upload label {
+      display:block;
+      margin-bottom:8px;
+      color:#ddd;
+      font-size:14px;
+    }
+    .profile-upload input[type="file"] {
+      width:100%;
+      background:transparent;
+      color:white;
+      padding:0;
+    }
+    .profile-preview {
+      width:64px;
+      height:64px;
+      border-radius:50%;
+      object-fit:cover;
+      display:block;
+      margin:10px 0;
+      border:2px solid #7289da;
+      background:#5865f2;
+    }
   </style>
 </head>
 <body>
@@ -42,7 +75,7 @@
     <div class="header" id="channelName"># general</div>
     <div class="messages" id="messages"></div>
     <div class="input-area">
-      <input id="messageInput" placeholder="Message #general">
+      <input id="messageInput" placeholder="Message #general" />
       <button onclick="sendMessage()">Send</button>
     </div>
     <div id="typingIndicator" class="typing-indicator"></div>
@@ -74,13 +107,26 @@
         owned_snake: false,
         owned_slope: false,
         muted_until: null,
-        mute_reason: null
+        mute_reason: null,
+        profile_picture: null
       });
 
-      function addMessage(usernameText, messageText) {
+      function getFallbackAvatar(name) {
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7289da&color=fff&rounded=true&size=64`;
+      }
+
+      function addMessage(usernameText, messageText, avatarUrl = null) {
         const div = document.createElement("div");
         div.className = "message";
-        div.innerHTML = `<span class="username">${usernameText}</span> ${messageText}`;
+        const src = avatarUrl || getFallbackAvatar(usernameText);
+        div.innerHTML = `
+          <div class="message-row">
+            <img class="avatar" src="${src}" alt="avatar">
+            <div class="message-content">
+              <span class="username">${usernameText}</span> ${messageText}
+            </div>
+          </div>
+        `;
         const container = document.getElementById("messages");
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
@@ -103,8 +149,19 @@
           return;
         }
 
+        const usernames = [...new Set(data.map(msg => msg.username))];
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("username, profile_picture")
+          .in("username", usernames);
+
+        const profileMap = {};
+        (profiles || []).forEach(p => {
+          profileMap[p.username] = p.profile_picture;
+        });
+
         data.forEach((msg) => {
-          addMessage(msg.username, msg.text);
+          addMessage(msg.username, msg.text, profileMap[msg.username] || null);
         });
       }
 
@@ -131,15 +188,15 @@
           return;
         }
 
-        try {
-          await supabase
-            .from("messages")
-            .insert({
-              channel: currentChannel,
-              username,
-              text
-            });
-        } catch (e) {
+        const { error } = await supabase
+          .from("messages")
+          .insert({
+            channel: currentChannel,
+            username,
+            text
+          });
+
+        if (error) {
           alert("Failed to send message.");
           return;
         }
@@ -154,7 +211,7 @@
 
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("username,xp,level,coins,owned_snake,owned_slope,muted_until,mute_reason")
+          .select("username,xp,level,coins,owned_snake,owned_slope,muted_until,mute_reason,profile_picture")
           .eq("username", username)
           .single();
 
@@ -168,20 +225,25 @@
         const xpToNext = profile.level * 100 - profile.xp;
         const isMuted = profile.muted_until !== null;
         const muteStatus = isMuted 
-          ? `<span class="mute-status">🔇 MUTED (until cleared)<br><em>${profile.mute_reason || 'No reason specified'}</em></span>` 
-          : '✅ Not muted';
+          ? `<span class="mute-status">🔇 MUTED (until cleared)<br><em>${profile.mute_reason || "No reason specified"}</em></span>` 
+          : "✅ Not muted";
 
         const statsDiv = document.createElement("div");
         statsDiv.className = "message";
         statsDiv.innerHTML = `
-          <strong>👤 ${profile.username}</strong><br>
-          <strong>⭐ Level:</strong> ${profile.level}<br>
-          <strong>⚡ XP:</strong> ${profile.xp}<br>
-          <strong>XP to next level:</strong> ${xpToNext}<br>
-          <strong>💰 Coins:</strong> ${profile.coins}<br>
-          <strong>🐍 Owns Snake:</strong> ${profile.owned_snake ? "Yes" : "No"}<br>
-          <strong>📈 Owns Slope:</strong> ${profile.owned_slope ? "Yes" : "No"}<br>
-          <strong>🔇 Mute Status:</strong> ${muteStatus}
+          <div class="message-row">
+            <img class="avatar" src="${profile.profile_picture || getFallbackAvatar(profile.username)}" alt="avatar">
+            <div class="message-content">
+              <strong>👤 ${profile.username}</strong><br>
+              <strong>⭐ Level:</strong> ${profile.level}<br>
+              <strong>⚡ XP:</strong> ${profile.xp}<br>
+              <strong>XP to next level:</strong> ${xpToNext}<br>
+              <strong>💰 Coins:</strong> ${profile.coins}<br>
+              <strong>🐍 Owns Snake:</strong> ${profile.owned_snake ? "Yes" : "No"}<br>
+              <strong>📈 Owns Slope:</strong> ${profile.owned_slope ? "Yes" : "No"}<br>
+              <strong>🔇 Mute Status:</strong> ${muteStatus}
+            </div>
+          </div>
         `;
         container.appendChild(statsDiv);
       }
@@ -324,7 +386,6 @@
 
         container.innerHTML = "";
 
-        // Snake Game Item
         const snakeDiv = document.createElement("div");
         snakeDiv.className = "message";
         snakeDiv.style.marginBottom = "20px";
@@ -343,7 +404,6 @@
         }
         container.appendChild(snakeDiv);
 
-        // Slope Game Item
         const slopeDiv = document.createElement("div");
         slopeDiv.className = "message";
         if (profile?.owned_slope) {
@@ -361,7 +421,6 @@
         }
         container.appendChild(slopeDiv);
 
-        // Add event listeners
         if (profile?.owned_snake) {
           document.getElementById("playSnakeBtn").onclick = openSnakeFullscreen;
         } else {
@@ -445,33 +504,65 @@
 
       async function openProfileEditor() {
         const { data: profile } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('username', username)
+          .from("profiles")
+          .select("username, profile_picture")
+          .eq("username", username)
           .single();
 
-        const newUsername = prompt(`Enter new username (leave blank to keep current):`);
-        if (newUsername === null || newUsername === "") return;
+        const newUsername = prompt("Enter new username (leave blank to keep current):");
+        if (newUsername === null) return;
 
-        if (!newUsername.trim()) {
-          alert("Username cannot be empty.");
-          return;
+        let newProfilePicture = profile?.profile_picture || null;
+
+        const pickImage = confirm("Do you want to upload a new profile picture?");
+        if (pickImage) {
+          const fileInput = document.createElement("input");
+          fileInput.type = "file";
+          fileInput.accept = "image/*";
+          fileInput.click();
+
+          const file = await new Promise((resolve) => {
+            fileInput.onchange = () => resolve(fileInput.files?.[0] || null);
+          });
+
+          if (file) {
+            newProfilePicture = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+          }
+        }
+
+        const updates = {
+          profile_picture: newProfilePicture
+        };
+
+        if (newUsername.trim()) {
+          updates.username = newUsername.trim();
         }
 
         const { error } = await supabase
-          .from('profiles')
-          .update({ username: newUsername.trim() })
-          .eq('username', username);
+          .from("profiles")
+          .update(updates)
+          .eq("username", username);
 
         if (error) {
-          alert("Failed to update username.");
+          alert("Failed to update profile.");
           return;
         }
 
-        username = newUsername.trim();
-        localStorage.setItem("username", username);
-        alert("Username updated!");
-        if (currentChannel === 'stats') await loadStats();
+        if (newUsername.trim()) {
+          username = newUsername.trim();
+          localStorage.setItem("username", username);
+        }
+
+        alert("Profile updated!");
+        if (currentChannel === "stats") await loadStats();
+        if (currentChannel === "general" || currentChannel === "coding" || currentChannel === "gaming") {
+          await loadMessagesForChannel(currentChannel);
+        }
       }
 
       function switchChannel(channel) {
@@ -487,8 +578,7 @@
             ? ""
             : "Message #" + channel;
 
-        const messages = document.getElementById("messages");
-        messages.innerHTML = "";
+        document.getElementById("messages").innerHTML = "";
 
         if (channel === "stats") {
           loadStats();
@@ -505,8 +595,7 @@
       window.openSnakeFullscreen = openSnakeFullscreen;
       window.openSlopeFullscreen = openSlopeFullscreen;
 
-      const messageInput = document.getElementById("messageInput");
-      messageInput.addEventListener("keypress", (e) => {
+      document.getElementById("messageInput").addEventListener("keypress", (e) => {
         if (e.key === "Enter") sendMessage();
       });
 
