@@ -27,7 +27,7 @@
     .typing-indicator{font-size:12px;color:#b9bbbe;margin:0 0 8px 15px;font-style:italic}
     .shop-btn{background:#43b581;margin:5px 0;padding:8px 16px}
     .profile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:10000}
-    .profile-modal{width:360px;max-width:calc(100vw - 30px);background:#2f3136;border:1px solid #202225;border-radius:12px;padding:18px}
+    .profile-modal{width:420px;max-width:calc(100vw - 30px);background:#2f3136;border:1px solid #202225;border-radius:12px;padding:18px}
     .profile-field{margin-bottom:12px}
     .profile-field label{display:block;margin-bottom:6px;color:#ddd;font-size:14px}
     .profile-field input[type=text]{width:100%;box-sizing:border-box;padding:10px;border-radius:6px;border:none;background:#40444b;color:#fff;outline:none}
@@ -38,7 +38,10 @@
     .overlay-box{width:min(980px,96vw);height:min(680px,92vh);background:#1e1f22;border-radius:12px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .overlay-box iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
     .close-btn{position:absolute;top:10px;right:10px;z-index:10001;width:40px;height:40px;border-radius:50%;border:none;background:#7289da;color:#fff;font-size:20px}
-    canvas{touch-action:none}
+    canvas{touch-action:none;display:block}
+    .pfp-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+    .color-btn{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.25);padding:0}
+    .eraser-btn{background:#d9d9d9;color:#111}
   </style>
 </head>
 <body>
@@ -68,7 +71,7 @@
     let username = localStorage.getItem('username') || prompt('Enter username:') || 'Guest';
     localStorage.setItem('username', username);
 
-    const storeKey = 'demoChatData_v3';
+    const storeKey = 'demoChatData_v4';
     const loadStore = () => JSON.parse(localStorage.getItem(storeKey) || '{"profiles":{},"messages":[]}');
     const saveStore = s => localStorage.setItem(storeKey, JSON.stringify(s));
     const getFallbackAvatar = n => `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=7289da&color=fff&rounded=true&size=64`;
@@ -145,8 +148,16 @@
           <div class="profile-field"><label>Username</label><input id="profileUsername" type="text" value="${profile.username}"></div>
           <div class="profile-field">
             <label>Draw your PFP</label>
-            <canvas id="pfpCanvas" width="256" height="256" style="width:180px;height:180px;border-radius:50%;background:#40444b;border:2px solid #7289da;display:block"></canvas>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+            <canvas id="pfpCanvas" width="256" height="256" style="width:180px;height:180px;border-radius:50%;background:#40444b;border:2px solid #7289da;"></canvas>
+            <div class="pfp-tools">
+              <button id="brushRed" class="color-btn" style="background:#ff4d4d"></button>
+              <button id="brushOrange" class="color-btn" style="background:#ff9f43"></button>
+              <button id="brushYellow" class="color-btn" style="background:#ffd93d"></button>
+              <button id="brushGreen" class="color-btn" style="background:#2ecc71"></button>
+              <button id="brushBlue" class="color-btn" style="background:#3498db"></button>
+              <button id="brushPurple" class="color-btn" style="background:#9b59b6"></button>
+              <button id="brushWhite" class="color-btn" style="background:#ffffff"></button>
+              <button id="eraserBtn" class="eraser-btn">Eraser</button>
               <button id="clearPfp" class="cancel-btn">Clear</button>
               <button id="loadPfp">Load Image</button>
               <input id="pfpFile" type="file" accept="image/*" hidden>
@@ -161,13 +172,12 @@
       const o=openOverlay(createPfpEditor(p));
       const canvas=o.querySelector('#pfpCanvas'); const ctx=canvas.getContext('2d');
       let drawing=false, lastX=0, lastY=0, hasDrawn=false, loaded=false;
+      let tool = { color: '#ffffff', size: 10, eraser: false };
 
       const drawBase=()=>{
         ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.fillStyle='#40444b';
-        ctx.beginPath();
-        ctx.arc(128,128,124,0,Math.PI*2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(128,128,124,0,Math.PI*2); ctx.fill();
         if(p.profile_picture){
           const img=new Image();
           img.crossOrigin='anonymous';
@@ -199,8 +209,9 @@
         ctx.clip();
         ctx.lineCap='round';
         ctx.lineJoin='round';
-        ctx.lineWidth=10;
-        ctx.strokeStyle='#fff';
+        ctx.lineWidth=tool.size;
+        ctx.strokeStyle = tool.eraser ? '#40444b' : tool.color;
+        ctx.globalCompositeOperation = 'source-over';
         ctx.beginPath();
         ctx.moveTo(lastX,lastY);
         ctx.lineTo(p2.x,p2.y);
@@ -215,16 +226,14 @@
       canvas.ontouchmove=e=>{ if(!drawing) return; stroke(point(e)); ({x:lastX,y:lastY}=point(e)); hasDrawn=true; };
       window.ontouchend=()=>drawing=false;
 
-      o.querySelector('#clearPfp').onclick=()=>{
-        drawBase();
-        hasDrawn=false;
-        loaded=false;
-      };
-
+      ['brushRed','brushOrange','brushYellow','brushGreen','brushBlue','brushPurple','brushWhite'].forEach(id=>{
+        o.querySelector('#'+id).onclick=()=>{ tool.color = o.querySelector('#'+id).style.backgroundColor || '#fff'; tool.eraser=false; };
+      });
+      o.querySelector('#eraserBtn').onclick=()=>{ tool.eraser=true; };
+      o.querySelector('#clearPfp').onclick=()=>{ drawBase(); hasDrawn=false; loaded=false; };
       o.querySelector('#loadPfp').onclick=()=>o.querySelector('#pfpFile').click();
       o.querySelector('#pfpFile').onchange=e=>{
-        const f=e.target.files[0];
-        if(!f) return;
+        const f=e.target.files[0]; if(!f) return;
         const img=new Image();
         img.onload=()=>{
           ctx.clearRect(0,0,256,256);
@@ -234,8 +243,7 @@
           ctx.clip();
           ctx.drawImage(img,0,0,256,256);
           ctx.restore();
-          hasDrawn=true;
-          loaded=true;
+          hasDrawn=true; loaded=true;
         };
         img.src=URL.createObjectURL(f);
       };
