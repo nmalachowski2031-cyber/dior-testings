@@ -30,7 +30,7 @@
     .profile-modal{width:360px;max-width:calc(100vw - 30px);background:#2f3136;border:1px solid #202225;border-radius:12px;padding:18px}
     .profile-field{margin-bottom:12px}
     .profile-field label{display:block;margin-bottom:6px;color:#ddd;font-size:14px}
-    .profile-field input[type=text]{width:100%;box-sizing:border-box;padding:10px;border-radius:6px;border:none;background:#40444b;color:#fff;outline:none}
+    .profile-field input[type=text], .profile-field input[type=number], .profile-field input[type=color]{width:100%;box-sizing:border-box;padding:10px;border-radius:6px;border:none;background:#40444b;color:#fff;outline:none}
     .profile-actions{display:flex;gap:10px;margin-top:14px}
     .profile-actions button{flex:1}
     .cancel-btn{background:#555}
@@ -143,6 +143,22 @@
         <div style="padding:18px;color:#fff">
           <h3 style="margin-top:0">Edit Profile</h3>
           <div class="profile-field"><label>Username</label><input id="profileUsername" type="text" value="${profile.username}"></div>
+
+          <div class="profile-field">
+            <label>PFP Background Color</label>
+            <input id="bgColorPicker" type="color" value="#40444b">
+          </div>
+
+          <div class="profile-field">
+            <label>Brush Color (RGB)</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <input id="rInput" type="number" min="0" max="255" value="255" placeholder="R" style="width:80px">
+              <input id="gInput" type="number" min="0" max="255" value="255" placeholder="G" style="width:80px">
+              <input id="bInput" type="number" min="0" max="255" value="255" placeholder="B" style="width:80px">
+              <button id="applyRGBBtn" type="button">Apply</button>
+            </div>
+          </div>
+
           <div class="profile-field">
             <label>Draw your PFP</label>
             <canvas id="pfpCanvas" width="256" height="256" style="width:180px;height:180px;border-radius:50%;background:#40444b;border:2px solid #7289da;display:block"></canvas>
@@ -160,15 +176,22 @@
       const s=loadStore(); const p=s.profiles[username];
       const o=openOverlay(createPfpEditor(p));
       const canvas=o.querySelector('#pfpCanvas'); const ctx=canvas.getContext('2d');
+      const bgPicker=o.querySelector('#bgColorPicker');
+      const rEl=o.querySelector('#rInput');
+      const gEl=o.querySelector('#gInput');
+      const bEl=o.querySelector('#bInput');
+      const applyRGBBtn=o.querySelector('#applyRGBBtn');
+
       let drawing=false, lastX=0, lastY=0, hasDrawn=false, loaded=false;
+      let brushColor='rgb(255,255,255)';
 
       const drawBase=()=>{
         ctx.clearRect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle='#40444b';
+        ctx.fillStyle=bgPicker.value;
         ctx.beginPath();
         ctx.arc(128,128,124,0,Math.PI*2);
         ctx.fill();
-        if(p.profile_picture){
+        if(p.profile_picture && !hasDrawn){
           const img=new Image();
           img.crossOrigin='anonymous';
           img.onload=()=>{
@@ -186,6 +209,15 @@
 
       drawBase();
 
+      bgPicker.addEventListener('input', drawBase);
+
+      applyRGBBtn.addEventListener('click', () => {
+        const r = Math.min(Math.max(parseInt(rEl.value || 0), 0), 255);
+        const g = Math.min(Math.max(parseInt(gEl.value || 0), 0), 255);
+        const b = Math.min(Math.max(parseInt(bEl.value || 0), 0), 255);
+        brushColor = `rgb(${r},${g},${b})`;
+      });
+
       const point=e=>{
         const r=canvas.getBoundingClientRect();
         const t=e.touches?e.touches[0]:e;
@@ -200,7 +232,7 @@
         ctx.lineCap='round';
         ctx.lineJoin='round';
         ctx.lineWidth=10;
-        ctx.strokeStyle='#fff';
+        ctx.strokeStyle=brushColor;
         ctx.beginPath();
         ctx.moveTo(lastX,lastY);
         ctx.lineTo(p2.x,p2.y);
@@ -216,9 +248,9 @@
       window.ontouchend=()=>drawing=false;
 
       o.querySelector('#clearPfp').onclick=()=>{
-        drawBase();
         hasDrawn=false;
         loaded=false;
+        drawBase();
       };
 
       o.querySelector('#loadPfp').onclick=()=>o.querySelector('#pfpFile').click();
@@ -245,7 +277,7 @@
         const newName=o.querySelector('#profileUsername').value.trim() || username;
         const dataURL = hasDrawn || loaded ? canvas.toDataURL('image/png') : p.profile_picture;
         const s2=loadStore();
-        s2.profiles[newName] = { ...s2.profiles[username], username:newName, profile_picture:dataURL };
+        s2.profiles[newName] = { ...s2.profiles[username], username:newName, profile_picture:dataURL, pfp_bg_color:bgPicker.value, pfp_brush_color:brushColor };
         if(newName!==username){
           delete s2.profiles[username];
           s2.messages.forEach(m=>{ if(m.username===username) m.username=newName; });
