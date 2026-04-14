@@ -31,6 +31,9 @@
     .profile-field{margin-bottom:12px}
     .profile-field label{display:block;margin-bottom:6px;color:#ddd;font-size:14px}
     .profile-field input[type=text], .profile-field input[type=number], .profile-field input[type=color]{width:100%;box-sizing:border-box;padding:10px;border-radius:6px;border:none;background:#40444b;color:#fff;outline:none}
+    .rgb-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .rgb-row input[type="number"]{flex:1;max-width:120px}
+    .rgb-row button{flex:0 0 auto}
     .profile-actions{display:flex;gap:10px;margin-top:14px}
     .profile-actions button{flex:1}
     .cancel-btn{background:#555}
@@ -151,12 +154,17 @@
 
           <div class="profile-field">
             <label>Brush Color (RGB)</label>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <input id="rInput" type="number" min="0" max="255" value="255" placeholder="R" style="width:80px">
-              <input id="gInput" type="number" min="0" max="255" value="255" placeholder="G" style="width:80px">
-              <input id="bInput" type="number" min="0" max="255" value="255" placeholder="B" style="width:80px">
-              <button id="applyRGBBtn" type="button">Apply</button>
+            <div class="rgb-row">
+              <input id="rInput" type="number" min="0" max="255" value="255" placeholder="R">
+              <input id="gInput" type="number" min="0" max="255" value="255" placeholder="G">
+              <input id="bInput" type="number" min="0" max="255" value="255" placeholder="B">
+              <button id="applyRGBBtn">Apply</button>
             </div>
+          </div>
+
+          <div class="profile-field">
+            <label>Brush Size</label>
+            <input id="brushSize" type="range" min="1" max="30" value="10">
           </div>
 
           <div class="profile-field">
@@ -181,9 +189,11 @@
       const gEl=o.querySelector('#gInput');
       const bEl=o.querySelector('#bInput');
       const applyRGBBtn=o.querySelector('#applyRGBBtn');
+      const brushSizeSlider=o.querySelector('#brushSize');
 
       let drawing=false, lastX=0, lastY=0, hasDrawn=false, loaded=false;
       let brushColor='rgb(255,255,255)';
+      let lineWidth=10;
 
       const drawBase=()=>{
         ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -218,6 +228,10 @@
         brushColor = `rgb(${r},${g},${b})`;
       });
 
+      brushSizeSlider.addEventListener('input', () => {
+        lineWidth = parseFloat(brushSizeSlider.value);
+      });
+
       const point=e=>{
         const r=canvas.getBoundingClientRect();
         const t=e.touches?e.touches[0]:e;
@@ -231,7 +245,7 @@
         ctx.clip();
         ctx.lineCap='round';
         ctx.lineJoin='round';
-        ctx.lineWidth=10;
+        ctx.lineWidth=lineWidth;
         ctx.strokeStyle=brushColor;
         ctx.beginPath();
         ctx.moveTo(lastX,lastY);
@@ -277,7 +291,14 @@
         const newName=o.querySelector('#profileUsername').value.trim() || username;
         const dataURL = hasDrawn || loaded ? canvas.toDataURL('image/png') : p.profile_picture;
         const s2=loadStore();
-        s2.profiles[newName] = { ...s2.profiles[username], username:newName, profile_picture:dataURL, pfp_bg_color:bgPicker.value, pfp_brush_color:brushColor };
+        s2.profiles[newName] = { 
+          ...s2.profiles[username], 
+          username:newName, 
+          profile_picture:dataURL, 
+          pfp_bg_color:bgPicker.value, 
+          pfp_brush_color:brushColor, 
+          pfp_brush_width:lineWidth 
+        };
         if(newName!==username){
           delete s2.profiles[username];
           s2.messages.forEach(m=>{ if(m.username===username) m.username=newName; });
@@ -299,9 +320,7 @@
       if(channel==='stats') loadStats();
       else if(channel==='shop') loadShop();
       else loadMessages(channel);
-    }
-
-    function loadShop(){
+       function loadShop(){
       const s=loadStore();
       const p=s.profiles[username];
       $('messages').innerHTML='';
@@ -339,8 +358,12 @@
       };
     }
 
-    function openSnakeFullscreen(){ openOverlay(`<iframe src="https://frogdafish.github.io/Snek"></iframe>`); }
-    function openSlopeFullscreen(){ openOverlay(`<iframe src="slope.html"></iframe>`); }
+    function openSnakeFullscreen(){ 
+      openOverlay(`<iframe src="https://frogdafish.github.io/Snek"></iframe>`); 
+    }
+    function openSlopeFullscreen(){ 
+      openOverlay(`<iframe src="slope.html"></iframe>`); 
+    }
 
     $('sendBtn').addEventListener('click', sendMessage);
     $('messageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendMessage(); });
