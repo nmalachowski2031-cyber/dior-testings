@@ -29,34 +29,90 @@
     .mute-status { color:#ff6b6b; font-weight:bold; }
     button.shop-btn { background:#43b581; margin:5px 0; padding:8px 16px; }
     button.shop-btn:hover { background:#3da674; }
-    .profile-upload {
-      margin-top:12px;
-      padding:10px;
-      background:#2f3136;
-      border-radius:8px;
-      border:1px solid #202225;
+
+    .profile-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
     }
-    .profile-upload label {
-      display:block;
-      margin-bottom:8px;
-      color:#ddd;
-      font-size:14px;
+
+    .profile-modal {
+      width: 360px;
+      max-width: calc(100vw - 30px);
+      background: #2f3136;
+      border: 1px solid #202225;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
     }
-    .profile-upload input[type="file"] {
-      width:100%;
-      background:transparent;
-      color:white;
-      padding:0;
+
+    .profile-modal h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
     }
+
+    .profile-field {
+      margin-bottom: 12px;
+    }
+
+    .profile-field label {
+      display: block;
+      margin-bottom: 6px;
+      color: #ddd;
+      font-size: 14px;
+    }
+
+    .profile-field input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      background: #40444b;
+      color: white;
+      outline: none;
+    }
+
+    .profile-field input[type="file"] {
+      width: 100%;
+      box-sizing: border-box;
+      color: white;
+      background: transparent;
+      padding: 6px 0;
+    }
+
     .profile-preview {
-      width:64px;
-      height:64px;
-      border-radius:50%;
-      object-fit:cover;
-      display:block;
-      margin:10px 0;
-      border:2px solid #7289da;
-      background:#5865f2;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: none;
+      margin-top: 10px;
+      border: 2px solid #7289da;
+      background: #5865f2;
+    }
+
+    .profile-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .profile-actions button {
+      flex: 1;
+      margin-left: 0;
+    }
+
+    .cancel-btn {
+      background: #555;
+    }
+
+    .cancel-btn:hover {
+      background: #666;
     }
   </style>
 </head>
@@ -224,8 +280,8 @@
 
         const xpToNext = profile.level * 100 - profile.xp;
         const isMuted = profile.muted_until !== null;
-        const muteStatus = isMuted 
-          ? `<span class="mute-status">🔇 MUTED (until cleared)<br><em>${profile.mute_reason || "No reason specified"}</em></span>` 
+        const muteStatus = isMuted
+          ? `<span class="mute-status">🔇 MUTED (until cleared)<br><em>${profile.mute_reason || "No reason specified"}</em></span>`
           : "✅ Not muted";
 
         const statsDiv = document.createElement("div");
@@ -509,21 +565,60 @@
           .eq("username", username)
           .single();
 
-        const newUsername = prompt("Enter new username (leave blank to keep current):");
-        if (newUsername === null) return;
+        const overlay = document.createElement("div");
+        overlay.className = "profile-overlay";
+        overlay.innerHTML = `
+          <div class="profile-modal">
+            <h3>Edit Profile</h3>
 
-        let newProfilePicture = profile?.profile_picture || null;
+            <div class="profile-field">
+              <label for="profileUsername">Username</label>
+              <input id="profileUsername" type="text" value="${profile?.username || username}" />
+            </div>
 
-        const pickImage = confirm("Do you want to upload a new profile picture?");
-        if (pickImage) {
-          const fileInput = document.createElement("input");
-          fileInput.type = "file";
-          fileInput.accept = "image/*";
-          fileInput.click();
+            <div class="profile-field">
+              <label for="profileFile">Profile Picture</label>
+              <input id="profileFile" type="file" accept="image/*" />
+              <img id="profilePreview" class="profile-preview" src="${profile?.profile_picture || ""}" alt="Preview">
+            </div>
 
-          const file = await new Promise((resolve) => {
-            fileInput.onchange = () => resolve(fileInput.files?.[0] || null);
-          });
+            <div class="profile-actions">
+              <button id="saveProfileBtn">Save</button>
+              <button id="cancelProfileBtn" class="cancel-btn">Cancel</button>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const fileInput = document.getElementById("profileFile");
+        const preview = document.getElementById("profilePreview");
+
+        if (profile?.profile_picture) {
+          preview.style.display = "block";
+        }
+
+        fileInput.addEventListener("change", () => {
+          const file = fileInput.files?.[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = () => {
+            preview.src = reader.result;
+            preview.style.display = "block";
+          };
+          reader.readAsDataURL(file);
+        });
+
+        document.getElementById("cancelProfileBtn").onclick = () => {
+          overlay.remove();
+        };
+
+        document.getElementById("saveProfileBtn").onclick = async () => {
+          const newUsername = document.getElementById("profileUsername").value.trim();
+          const file = fileInput.files?.[0];
+
+          let newProfilePicture = profile?.profile_picture || null;
 
           if (file) {
             newProfilePicture = await new Promise((resolve, reject) => {
@@ -533,36 +628,38 @@
               reader.readAsDataURL(file);
             });
           }
-        }
 
-        const updates = {
-          profile_picture: newProfilePicture
+          const updates = {
+            profile_picture: newProfilePicture
+          };
+
+          if (newUsername && newUsername !== username) {
+            updates.username = newUsername;
+          }
+
+          const { error } = await supabase
+            .from("profiles")
+            .update(updates)
+            .eq("username", username);
+
+          if (error) {
+            alert("Failed to update profile.");
+            return;
+          }
+
+          if (newUsername && newUsername !== username) {
+            username = newUsername;
+            localStorage.setItem("username", username);
+          }
+
+          overlay.remove();
+          alert("Profile updated!");
+
+          if (currentChannel === "stats") await loadStats();
+          if (currentChannel === "general" || currentChannel === "coding" || currentChannel === "gaming") {
+            await loadMessagesForChannel(currentChannel);
+          }
         };
-
-        if (newUsername.trim()) {
-          updates.username = newUsername.trim();
-        }
-
-        const { error } = await supabase
-          .from("profiles")
-          .update(updates)
-          .eq("username", username);
-
-        if (error) {
-          alert("Failed to update profile.");
-          return;
-        }
-
-        if (newUsername.trim()) {
-          username = newUsername.trim();
-          localStorage.setItem("username", username);
-        }
-
-        alert("Profile updated!");
-        if (currentChannel === "stats") await loadStats();
-        if (currentChannel === "general" || currentChannel === "coding" || currentChannel === "gaming") {
-          await loadMessagesForChannel(currentChannel);
-        }
       }
 
       function switchChannel(channel) {
