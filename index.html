@@ -19,7 +19,7 @@
     .message{margin-bottom:10px}
     .message-row{display:flex;align-items:flex-start;gap:8px}
     .avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;background:#5865f2;flex-shrink:0;margin-top:2px;border:1px solid rgba(255,255,255,.15)}
-    .message-content{line-height:1.35;word-break:break-word}
+    .message-content{line-height:1.35;word-break:break-word;white-space:normal}
     .username{font-weight:bold;color:#7289da}
     .input-area{padding:10px 15px;background:#40444b;display:flex;gap:10px}
     input{flex:1;padding:10px;border-radius:4px;border:none;background:#303339;color:#fff;outline:none}
@@ -51,6 +51,7 @@
     <div class="channel" data-channel="shop"># shop</div>
     <div class="edit-profile" id="editProfileBtn">⚙ Edit Profile</div>
   </div>
+
   <div class="chat">
     <div class="header" id="channelName"># general</div>
     <div class="messages" id="messages"></div>
@@ -60,28 +61,18 @@
     </div>
     <div id="typingIndicator" class="typing-indicator"></div>
   </div>
+
   <script>
     const $ = id => document.getElementById(id);
     let currentChannel = 'general';
     let username = localStorage.getItem('username') || prompt('Enter username:') || 'Guest';
     localStorage.setItem('username', username);
-    const storeKey = 'demoChatData_v2';
+
+    const storeKey = 'demoChatData_v3';
     const loadStore = () => JSON.parse(localStorage.getItem(storeKey) || '{"profiles":{},"messages":[]}');
     const saveStore = s => localStorage.setItem(storeKey, JSON.stringify(s));
     const getFallbackAvatar = n => `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=7289da&color=fff&rounded=true&size=64`;
     const setAvatarFallback = (img, n) => img.onerror = () => { img.onerror = null; img.src = getFallbackAvatar(n); };
-
-    function addMessage(user, text, avatarUrl=null){
-      const div=document.createElement('div'); div.className='message';
-      div.innerHTML=`<div class="message-row"><img class="avatar" src="${avatarUrl||getFallbackAvatar(user)}"><div class="message-content"><span class="username">${user}</span> ${text}</div></div>`;
-      setAvatarFallback(div.querySelector('.avatar'), user);
-      $('messages').appendChild(div); $('messages').scrollTop = $('messages').scrollHeight;
-    }
-
-    function renderChannelHeader(channel){
-      $('channelName').textContent = channel === 'stats' ? '# stats' : channel === 'shop' ? '# shop' : `# ${channel}`;
-      $('messageInput').placeholder = (channel === 'stats' || channel === 'shop') ? '' : `Message #${channel}`;
-    }
 
     function ensureProfile(){
       const s=loadStore();
@@ -89,16 +80,38 @@
       saveStore(s);
     }
 
+    function avatarFor(name){
+      const s = loadStore();
+      return s.profiles[name]?.profile_picture || getFallbackAvatar(name);
+    }
+
+    function addMessage(user, text, avatarUrl=null){
+      const div=document.createElement('div');
+      div.className='message';
+      const safe = String(text).replace(/\n/g,'<br>');
+      div.innerHTML=`<div class="message-row"><img class="avatar" src="${avatarUrl||getFallbackAvatar(user)}" alt="avatar"><div class="message-content"><span class="username">${user}</span> ${safe}</div></div>`;
+      const img = div.querySelector('.avatar');
+      setAvatarFallback(img, user);
+      $('messages').appendChild(div);
+      $('messages').scrollTop = $('messages').scrollHeight;
+    }
+
+    function renderChannelHeader(channel){
+      $('channelName').textContent = channel === 'stats' ? '# stats' : channel === 'shop' ? '# shop' : `# ${channel}`;
+      $('messageInput').placeholder = (channel === 'stats' || channel === 'shop') ? '' : `Message #${channel}`;
+    }
+
     function loadMessages(channel){
       const s=loadStore();
       $('messages').innerHTML='';
       const msgs=s.messages.filter(m=>m.channel===channel);
       if(!msgs.length) addMessage('System', 'No messages yet.');
-      msgs.forEach(m => addMessage(m.username, m.text, s.profiles[m.username]?.profile_picture || null));
+      msgs.forEach(m => addMessage(m.username, m.text, avatarFor(m.username)));
     }
 
     function sendMessage(){
-      const text=$('messageInput').value.trim(); if(!text) return;
+      const text=$('messageInput').value.trim();
+      if(!text) return;
       if(currentChannel==='stats' || currentChannel==='shop') return alert('You cannot send messages in this channel!');
       const s=loadStore();
       const p=s.profiles[username];
@@ -110,12 +123,13 @@
     }
 
     function loadStats(){
-      const s=loadStore(); const p=s.profiles[username]; $('messages').innerHTML='';
-      const xpToNext=Math.max(p.level*100-p.xp,0);
-      addMessage('System', `👤 ${p.username}<br><strong>⭐ Level:</strong> ${p.level}<br><strong>⚡ XP:</strong> ${p.xp}<br><strong>XP to next level:</strong> ${xpToNext}<br><strong>💰 Coins:</strong> ${p.coins}<br><strong>🐍 Owns Snake:</strong> ${p.owned_snake ? 'Yes' : 'No'}<br><strong>📈 Owns Slope:</strong> ${p.owned_slope ? 'Yes' : 'No'}` , p.profile_picture || null);
+      const s=loadStore();
+      const p=s.profiles[username];
+      $('messages').innerHTML='';
+      addMessage('System', `👤 ${p.username}<br><strong>⭐ Level:</strong> ${p.level}<br><strong>⚡ XP:</strong> ${p.xp}<br><strong>XP to next level:</strong> ${Math.max(p.level*100-p.xp,0)}<br><strong>💰 Coins:</strong> ${p.coins}<br><strong>🐍 Owns Snake:</strong> ${p.owned_snake ? 'Yes' : 'No'}<br><strong>📈 Owns Slope:</strong> ${p.owned_slope ? 'Yes' : 'No'}` , avatarFor(p.username));
     }
 
-    function openOverlay(title, innerHTML){
+    function openOverlay(innerHTML){
       const old=document.querySelector('.overlay'); if(old) old.remove();
       const o=document.createElement('div'); o.className='overlay';
       o.innerHTML=`<div class="overlay-box"><button class="close-btn">✖</button>${innerHTML}</div>`;
@@ -144,58 +158,163 @@
 
     function openProfileEditor(){
       const s=loadStore(); const p=s.profiles[username];
-      const o=openOverlay('Edit Profile', createPfpEditor(p));
+      const o=openOverlay(createPfpEditor(p));
       const canvas=o.querySelector('#pfpCanvas'); const ctx=canvas.getContext('2d');
-      let drawing=false, lastX=0, lastY=0, hasDrawn=false;
+      let drawing=false, lastX=0, lastY=0, hasDrawn=false, loaded=false;
+
       const drawBase=()=>{
         ctx.clearRect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle='#40444b'; ctx.beginPath(); ctx.arc(128,128,124,0,Math.PI*2); ctx.fill();
-        if(p.profile_picture){ const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0,256,256); img.src=p.profile_picture; }
+        ctx.fillStyle='#40444b';
+        ctx.beginPath();
+        ctx.arc(128,128,124,0,Math.PI*2);
+        ctx.fill();
+        if(p.profile_picture){
+          const img=new Image();
+          img.crossOrigin='anonymous';
+          img.onload=()=>{
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(128,128,124,0,Math.PI*2);
+            ctx.clip();
+            ctx.drawImage(img,0,0,256,256);
+            ctx.restore();
+            loaded=true;
+          };
+          img.src=p.profile_picture;
+        }
       };
+
       drawBase();
-      const point=e=>{const r=canvas.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left)*(canvas.width/r.width), y:(t.clientY-r.top)*(canvas.height/r.height)}};
+
+      const point=e=>{
+        const r=canvas.getBoundingClientRect();
+        const t=e.touches?e.touches[0]:e;
+        return {x:(t.clientX-r.left)*(canvas.width/r.width), y:(t.clientY-r.top)*(canvas.height/r.height)}
+      };
+
+      const stroke=(p2)=>{
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(128,128,124,0,Math.PI*2);
+        ctx.clip();
+        ctx.lineCap='round';
+        ctx.lineJoin='round';
+        ctx.lineWidth=10;
+        ctx.strokeStyle='#fff';
+        ctx.beginPath();
+        ctx.moveTo(lastX,lastY);
+        ctx.lineTo(p2.x,p2.y);
+        ctx.stroke();
+        ctx.restore();
+      };
+
       canvas.onmousedown=e=>{drawing=true; ({x:lastX,y:lastY}=point(e));};
-      canvas.onmousemove=e=>{ if(!drawing) return; const p2=point(e); ctx.save(); ctx.beginPath(); ctx.arc(128,128,124,0,Math.PI*2); ctx.clip(); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.lineWidth=10; ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(p2.x,p2.y); ctx.stroke(); ctx.restore(); lastX=p2.x; lastY=p2.y; hasDrawn=true; };
+      canvas.onmousemove=e=>{ if(!drawing) return; stroke(point(e)); ({x:lastX,y:lastY}=point(e)); hasDrawn=true; };
       window.onmouseup=()=>drawing=false;
       canvas.ontouchstart=e=>{drawing=true; ({x:lastX,y:lastY}=point(e));};
-      canvas.ontouchmove=e=>{ if(!drawing) return; const p2=point(e); ctx.save(); ctx.beginPath(); ctx.arc(128,128,124,0,Math.PI*2); ctx.clip(); ctx.lineCap='round'; ctx.lineJoin='round'; ctx.lineWidth=10; ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(p2.x,p2.y); ctx.stroke(); ctx.restore(); lastX=p2.x; lastY=p2.y; hasDrawn=true; };
+      canvas.ontouchmove=e=>{ if(!drawing) return; stroke(point(e)); ({x:lastX,y:lastY}=point(e)); hasDrawn=true; };
       window.ontouchend=()=>drawing=false;
-      o.querySelector('#clearPfp').onclick=()=>{drawBase(); hasDrawn=false;};
+
+      o.querySelector('#clearPfp').onclick=()=>{
+        drawBase();
+        hasDrawn=false;
+        loaded=false;
+      };
+
       o.querySelector('#loadPfp').onclick=()=>o.querySelector('#pfpFile').click();
-      o.querySelector('#pfpFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const img=new Image(); img.onload=()=>{ ctx.clearRect(0,0,256,256); ctx.drawImage(img,0,0,256,256); hasDrawn=true; }; img.src=URL.createObjectURL(f); };
+      o.querySelector('#pfpFile').onchange=e=>{
+        const f=e.target.files[0];
+        if(!f) return;
+        const img=new Image();
+        img.onload=()=>{
+          ctx.clearRect(0,0,256,256);
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(128,128,124,0,Math.PI*2);
+          ctx.clip();
+          ctx.drawImage(img,0,0,256,256);
+          ctx.restore();
+          hasDrawn=true;
+          loaded=true;
+        };
+        img.src=URL.createObjectURL(f);
+      };
+
       o.querySelector('#cancelProfileBtn').onclick=()=>o.remove();
       o.querySelector('#saveProfileBtn').onclick=()=>{
         const newName=o.querySelector('#profileUsername').value.trim() || username;
-        const dataURL = hasDrawn ? canvas.toDataURL('image/png') : p.profile_picture;
+        const dataURL = hasDrawn || loaded ? canvas.toDataURL('image/png') : p.profile_picture;
         const s2=loadStore();
         s2.profiles[newName] = { ...s2.profiles[username], username:newName, profile_picture:dataURL };
-        if(newName!==username){ delete s2.profiles[username]; s2.messages.forEach(m=>{ if(m.username===username) m.username=newName; }); username=newName; localStorage.setItem('username', username); }
-        saveStore(s2); o.remove();
-        if(currentChannel==='stats') loadStats(); else loadMessages(currentChannel);
+        if(newName!==username){
+          delete s2.profiles[username];
+          s2.messages.forEach(m=>{ if(m.username===username) m.username=newName; });
+          username=newName;
+          localStorage.setItem('username', username);
+        }
+        saveStore(s2);
+        o.remove();
+        if(currentChannel==='stats') loadStats();
+        else loadMessages(currentChannel);
         alert('Profile updated!');
       };
     }
 
-    function switchChannel(channel){ currentChannel=channel; renderChannelHeader(channel); $('messages').innerHTML=''; if(channel==='stats') loadStats(); else if(channel==='shop') loadShop(); else loadMessages(channel); }
+    function switchChannel(channel){
+      currentChannel=channel;
+      renderChannelHeader(channel);
+      $('messages').innerHTML='';
+      if(channel==='stats') loadStats();
+      else if(channel==='shop') loadShop();
+      else loadMessages(channel);
+    }
 
     function loadShop(){
-      const s=loadStore(); const p=s.profiles[username]; $('messages').innerHTML='';
+      const s=loadStore();
+      const p=s.profiles[username];
+      $('messages').innerHTML='';
       const mk=(title,owned,buyText,playId,buyId,cost)=>{
-        const div=document.createElement('div'); div.className='message'; div.innerHTML = owned ? `<strong>${title}</strong><br><button class="shop-btn" id="${playId}">Play (Fullscreen)</button>` : `<strong>${title}</strong><br>Cost: ${cost} coins<br><button class="shop-btn" id="${buyId}">${buyText}</button>`; $('messages').appendChild(div);
+        const div=document.createElement('div');
+        div.className='message';
+        div.innerHTML = owned ? `<strong>${title}</strong><br><button class="shop-btn" id="${playId}">Play (Fullscreen)</button>` : `<strong>${title}</strong><br>Cost: ${cost} coins<br><button class="shop-btn" id="${buyId}">${buyText}</button>`;
+        $('messages').appendChild(div);
       };
       mk('🐍 Snake Game', p.owned_snake, 'Buy Snake (25 coins)', 'playSnakeBtn', 'buySnakeBtn', 25);
       mk('📈 Slope Game', p.owned_slope, 'Buy Slope (50 coins)', 'playSlopeBtn', 'buySlopeBtn', 50);
-      if(p.owned_snake) $('playSnakeBtn').onclick = openSnakeFullscreen; else $('buySnakeBtn').onclick = ()=>{ const s2=loadStore(); const p2=s2.profiles[username]; if(p2.coins<25) return alert('You need 25 coins to buy Snake!'); p2.coins-=25; p2.owned_snake=true; saveStore(s2); alert('You bought Snake!'); loadShop(); openSnakeFullscreen(); };
-      if(p.owned_slope) $('playSlopeBtn').onclick = openSlopeFullscreen; else $('buySlopeBtn').onclick = ()=>{ const s2=loadStore(); const p2=s2.profiles[username]; if(p2.coins<50) return alert('You need 50 coins to buy Slope!'); p2.coins-=50; p2.owned_slope=true; saveStore(s2); alert('You bought Slope!'); loadShop(); openSlopeFullscreen(); };
+      if(p.owned_snake) $('playSnakeBtn').onclick = openSnakeFullscreen;
+      else $('buySnakeBtn').onclick = ()=>{
+        const s2=loadStore();
+        const p2=s2.profiles[username];
+        if(p2.coins<25) return alert('You need 25 coins to buy Snake!');
+        p2.coins-=25;
+        p2.owned_snake=true;
+        saveStore(s2);
+        alert('You bought Snake!');
+        loadShop();
+        openSnakeFullscreen();
+      };
+      if(p.owned_slope) $('playSlopeBtn').onclick = openSlopeFullscreen;
+      else $('buySlopeBtn').onclick = ()=>{
+        const s2=loadStore();
+        const p2=s2.profiles[username];
+        if(p2.coins<50) return alert('You need 50 coins to buy Slope!');
+        p2.coins-=50;
+        p2.owned_slope=true;
+        saveStore(s2);
+        alert('You bought Slope!');
+        loadShop();
+        openSlopeFullscreen();
+      };
     }
 
-    function openSnakeFullscreen(){ openOverlay('Snake', `<iframe src="https://frogdafish.github.io/Snek"></iframe>`); }
-    function openSlopeFullscreen(){ openOverlay('Slope', `<iframe src="slope.html"></iframe>`); }
+    function openSnakeFullscreen(){ openOverlay(`<iframe src="https://frogdafish.github.io/Snek"></iframe>`); }
+    function openSlopeFullscreen(){ openOverlay(`<iframe src="slope.html"></iframe>`); }
 
     $('sendBtn').addEventListener('click', sendMessage);
     $('messageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendMessage(); });
     $('editProfileBtn').addEventListener('click', openProfileEditor);
     document.querySelectorAll('.channel').forEach(el=>el.addEventListener('click', ()=>switchChannel(el.dataset.channel)));
+
     renderChannelHeader('general');
     ensureProfile();
     loadMessages('general');
