@@ -91,7 +91,7 @@
     function addMessage(user, text, avatarUrl=null){
       const div=document.createElement('div');
       div.className='message';
-      const safe = String(text).replace(/\n/g,'<br>');
+      const safe = String(text).replace(/\\n/g,'<br>');
       div.innerHTML=`<div class="message-row"><img class="avatar" src="${avatarUrl||getFallbackAvatar(user)}" alt="avatar"><div class="message-content"><span class="username">${user}</span> ${safe}</div></div>`;
       const img = div.querySelector('.avatar');
       setAvatarFallback(img, user);
@@ -118,7 +118,7 @@
       if(currentChannel==='stats' || currentChannel==='shop') return alert('You cannot send messages in this channel!');
       const s=loadStore();
       const p=s.profiles[username];
-      if(p?.muted_until) return alert(`You are muted!\n\nReason: ${p.mute_reason || 'No reason specified'}`);
+      if(p?.muted_until) return alert(`You are muted!\\n\\nReason: ${p.mute_reason || 'No reason specified'}`);
       s.messages.push({channel: currentChannel, username, text, created_at: new Date().toISOString()});
       saveStore(s);
       $('messageInput').value='';
@@ -130,6 +130,46 @@
       const p=s.profiles[username];
       $('messages').innerHTML='';
       addMessage('System', `👤 ${p.username}<br><strong>⭐ Level:</strong> ${p.level}<br><strong>⚡ XP:</strong> ${p.xp}<br><strong>XP to next level:</strong> ${Math.max(p.level*100-p.xp,0)}<br><strong>💰 Coins:</strong> ${p.coins}<br><strong>🐍 Owns Snake:</strong> ${p.owned_snake ? 'Yes' : 'No'}<br><strong>📈 Owns Slope:</strong> ${p.owned_slope ? 'Yes' : 'No'}` , avatarFor(p.username));
+    }
+
+    function loadShop(){
+      const s=loadStore();
+      const p=s.profiles[username];
+      $('messages').innerHTML='';
+      const mk=(title,owned,buyText,playId,buyId,cost)=>{
+        const div=document.createElement('div');
+        div.className='message';
+        div.innerHTML = owned ? `<strong>${title}</strong><br><button class="shop-btn" id="${playId}">Play (Fullscreen)</button>` : `<strong>${title}</strong><br>Cost: ${cost} coins<br><button class="shop-btn" id="${buyId}">${buyText}</button>`;
+        $('messages').appendChild(div);
+      };
+      mk('🐍 Snake Game', p.owned_snake, 'Buy Snake (25 coins)', 'playSnakeBtn', 'buySnakeBtn', 25);
+      mk('📈 Slope Game', p.owned_slope, 'Buy Slope (50 coins)', 'playSlopeBtn', 'buySlopeBtn', 50);
+      
+      if(p.owned_snake) $('playSnakeBtn').onclick = openSnakeFullscreen;
+      else $('buySnakeBtn').onclick = ()=>{
+        const s2=loadStore();
+        const p2=s2.profiles[username];
+        if(p2.coins<25) return alert('You need 25 coins to buy Snake!');
+        p2.coins-=25;
+        p2.owned_snake=true;
+        saveStore(s2);
+        alert('You bought Snake!');
+        loadShop();
+        openSnakeFullscreen();
+      };
+      
+      if(p.owned_slope) $('playSlopeBtn').onclick = openSlopeFullscreen;
+      else $('buySlopeBtn').onclick = ()=>{
+        const s2=loadStore();
+        const p2=s2.profiles[username];
+        if(p2.coins<50) return alert('You need 50 coins to buy Slope!');
+        p2.coins-=50;
+        p2.owned_slope=true;
+        saveStore(s2);
+        alert('You bought Slope!');
+        loadShop();
+        openSlopeFullscreen();
+      };
     }
 
     function openOverlay(innerHTML){
@@ -149,71 +189,85 @@
 
           <div class="profile-field">
             <label>PFP Background Color</label>
-            <input id="bgColorPicker" type="color" value="#40444b">
+            <input id="bgColorPicker" type="color" value="${profile.pfp_bg_color || '#40444b'}">
           </div>
 
           <div class="profile-field">
             <label>Brush Color (RGB)</label>
             <div class="rgb-row">
-              <input id="rInput" type="number" min="0" max="255" value="255" placeholder="R">
-              <input id="gInput" type="number" min="0" max="255" value="255" placeholder="G">
-              <input id="bInput" type="number" min="0" max="255" value="255" placeholder="B">
+              <input id="rInput" type="number" min="0" max="255" value="${Math.max(0, Math.min(255, profile.pfp_brush_color ? parseInt(profile.pfp_brush_color.match(/(\d+),(\d+),(\d+)/)?.[1] || 255, 10) : 255))}" placeholder="R">
+              <input id="gInput" type="number" min="0" max="255" value="${Math.max(0, Math.min(255, profile.pfp_brush_color ? parseInt(profile.pfp_brush_color.match(/(\d+),(\d+),(\d+)/)?.[2] || 255, 10) : 255))}" placeholder="G">
+              <input id="bInput" type="number" min="0" max="255" value="${Math.max(0, Math.min(255, profile.pfp_brush_color ? parseInt(profile.pfp_brush_color.match(/(\d+),(\d+),(\d+)/)?.[3] || 255, 10) : 255))}" placeholder="B">
               <button id="applyRGBBtn">Apply</button>
             </div>
           </div>
 
           <div class="profile-field">
             <label>Brush Size</label>
-            <input id="brushSize" type="range" min="1" max="30" value="10">
+            <input id="brushSize" type="range" min="1" max="40" value="${profile.pfp_brush_width || 10}">
+            <span id="brushSizeValue" style="font-size:12px;color:#b9bbbe;margin-left:10px">${profile.pfp_brush_width || 10}px</span>
           </div>
 
           <div class="profile-field">
             <label>Draw your PFP</label>
-            <canvas id="pfpCanvas" width="256" height="256" style="width:180px;height:180px;border-radius:50%;background:#40444b;border:2px solid #7289da;display:block"></canvas>
+            <canvas id="pfpCanvas" width="256" height="256" style="width:180px;height:180px;border-radius:50%;background:#40444b;border:2px solid #7289da;display:block;cursor:crosshair"></canvas>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
               <button id="clearPfp" class="cancel-btn">Clear</button>
               <button id="loadPfp">Load Image</button>
               <input id="pfpFile" type="file" accept="image/*" hidden>
             </div>
           </div>
-          <div class="profile-actions"><button id="saveProfileBtn">Save</button><button id="cancelProfileBtn" class="cancel-btn">Cancel</button></div>
+
+          <div class="profile-actions">
+            <button id="saveProfileBtn">Save</button>
+            <button id="cancelProfileBtn" class="cancel-btn">Cancel</button>
+          </div>
         </div>`;
     }
 
     function openProfileEditor(){
-      const s=loadStore(); const p=s.profiles[username];
-      const o=openOverlay(createPfpEditor(p));
-      const canvas=o.querySelector('#pfpCanvas'); const ctx=canvas.getContext('2d');
-      const bgPicker=o.querySelector('#bgColorPicker');
-      const rEl=o.querySelector('#rInput');
-      const gEl=o.querySelector('#gInput');
-      const bEl=o.querySelector('#bInput');
-      const applyRGBBtn=o.querySelector('#applyRGBBtn');
-      const brushSizeSlider=o.querySelector('#brushSize');
+      const s = loadStore();
+      const p = s.profiles[username];
+      const o = openOverlay(createPfpEditor(p));
+      const canvas = o.querySelector('#pfpCanvas');
+      const ctx = canvas.getContext('2d');
+      const bgPicker = o.querySelector('#bgColorPicker');
+      const rEl = o.querySelector('#rInput');
+      const gEl = o.querySelector('#gInput');
+      const bEl = o.querySelector('#bInput');
+      const applyRGBBtn = o.querySelector('#applyRGBBtn');
+      const brushSizeSlider = o.querySelector('#brushSize');
+      const brushSizeValue = o.querySelector('#brushSizeValue');
 
-      let drawing=false, lastX=0, lastY=0, hasDrawn=false, loaded=false;
-      let brushColor='rgb(255,255,255)';
-      let lineWidth=10;
+      let drawing = false;
+      let lastX = 0;
+      let lastY = 0;
+      let hasDrawn = false;
+      let loaded = false;
+      let brushColor = p.pfp_brush_color || 'rgb(255,255,255)';
+      let lineWidth = p.pfp_brush_width || 10;
 
-      const drawBase=()=>{
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle=bgPicker.value;
+      const drawBase = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = bgPicker.value;
         ctx.beginPath();
-        ctx.arc(128,128,124,0,Math.PI*2);
+        ctx.arc(128, 128, 124, 0, Math.PI * 2);
         ctx.fill();
-        if(p.profile_picture && !hasDrawn){
-          const img=new Image();
-          img.crossOrigin='anonymous';
-          img.onload=()=>{
+
+        if (p.profile_picture && !hasDrawn && !loaded) {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
             ctx.save();
             ctx.beginPath();
-            ctx.arc(128,128,124,0,Math.PI*2);
+            ctx.arc(128, 128, 124, 0, Math.PI * 2);
             ctx.clip();
-            ctx.drawImage(img,0,0,256,256);
+            ctx.drawImage(img, 0, 0, 256, 256);
             ctx.restore();
-            loaded=true;
+            loaded = true;
           };
-          img.src=p.profile_picture;
+          img.onerror = () => loaded = true; // Prevent infinite loading
+          img.src = p.profile_picture;
         }
       };
 
@@ -229,88 +283,156 @@
       });
 
       brushSizeSlider.addEventListener('input', () => {
-        lineWidth = parseFloat(brushSizeSlider.value);
+        lineWidth = parseInt(brushSizeSlider.value, 10);
+        brushSizeValue.textContent = `${lineWidth}px`;
       });
 
-      const point=e=>{
-        const r=canvas.getBoundingClientRect();
-        const t=e.touches?e.touches[0]:e;
-        return {x:(t.clientX-r.left)*(canvas.width/r.width), y:(t.clientY-r.top)*(canvas.height/r.height)}
+      const point = e => {
+        const r = canvas.getBoundingClientRect();
+        const t = e.touches ? e.touches[0] : e;
+        return {
+          x: (t.clientX - r.left) * (canvas.width / r.width),
+          y: (t.clientY - r.top) * (canvas.height / r.height)
+        };
       };
 
-      const stroke=(p2)=>{
+      const stroke = p2 => {
         ctx.save();
         ctx.beginPath();
-        ctx.arc(128,128,124,0,Math.PI*2);
+        ctx.arc(128, 128, 124, 0, Math.PI * 2);
         ctx.clip();
-        ctx.lineCap='round';
-        ctx.lineJoin='round';
-        ctx.lineWidth=lineWidth;
-        ctx.strokeStyle=brushColor;
-        ctx.beginPath();
-        ctx.moveTo(lastX,lastY);
-        ctx.lineTo(p2.x,p2.y);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = lineWidth;
+        ctx.strokeStyle = brushColor;
+        ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
         ctx.restore();
       };
 
-      canvas.onmousedown=e=>{drawing=true; ({x:lastX,y:lastY}=point(e));};
-      canvas.onmousemove=e=>{ if(!drawing) return; stroke(point(e)); ({x:lastX,y:lastY}=point(e)); hasDrawn=true; };
-      window.onmouseup=()=>drawing=false;
-      canvas.ontouchstart=e=>{drawing=true; ({x:lastX,y:lastY}=point(e));};
-      canvas.ontouchmove=e=>{ if(!drawing) return; stroke(point(e)); ({x:lastX,y:lastY}=point(e)); hasDrawn=true; };
-      window.ontouchend=()=>drawing=false;
+      canvas.onmousedown = e => {
+        drawing = true;
+        const p2 = point(e);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(128, 128, 124, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = lineWidth;
+        ctx.strokeStyle = brushColor;
+        ctx.beginPath();
+        ctx.moveTo(p2.x, p2.y);
+        ctx.restore();
+        ({ x: lastX, y: lastY } = p2);
+        hasDrawn = true;
+      };
 
-      o.querySelector('#clearPfp').onclick=()=>{
-        hasDrawn=false;
-        loaded=false;
+      canvas.onmousemove = e => {
+        if (!drawing) return;
+        const p2 = point(e);
+        stroke(p2);
+        ({ x: lastX, y: lastY } = p2);
+      };
+
+      window.onmouseup = () => drawing = false;
+
+      canvas.ontouchstart = e => {
+        e.preventDefault();
+        drawing = true;
+        const p2 = point(e);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(128, 128, 124, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = lineWidth;
+        ctx.strokeStyle = brushColor;
+        ctx.beginPath();
+        ctx.moveTo(p2.x, p2.y);
+        ctx.restore();
+        ({ x: lastX, y: lastY } = p2);
+        hasDrawn = true;
+      };
+
+      canvas.ontouchmove = e => {
+        e.preventDefault();
+        if (!drawing) return;
+        const p2 = point(e);
+        stroke(p2);
+        ({ x: lastX, y: lastY } = p2);
+      };
+
+      window.ontouchend = () => drawing = false;
+
+      o.querySelector('#clearPfp').onclick = () => {
+        hasDrawn = false;
+        loaded = false;
         drawBase();
       };
 
-      o.querySelector('#loadPfp').onclick=()=>o.querySelector('#pfpFile').click();
-      o.querySelector('#pfpFile').onchange=e=>{
-        const f=e.target.files[0];
-        if(!f) return;
-        const img=new Image();
-        img.onload=()=>{
-          ctx.clearRect(0,0,256,256);
+      o.querySelector('#loadPfp').onclick = () => o.querySelector('#pfpFile').click();
+
+      o.querySelector('#pfpFile').onchange = e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, 256, 256);
           ctx.save();
           ctx.beginPath();
-          ctx.arc(128,128,124,0,Math.PI*2);
+          ctx.arc(128, 128, 124, 0, Math.PI * 2);
           ctx.clip();
-          ctx.drawImage(img,0,0,256,256);
+          ctx.drawImage(img, 0, 0, 256, 256);
           ctx.restore();
-          hasDrawn=true;
-          loaded=true;
+          hasDrawn = true;
+          loaded = true;
         };
-        img.src=URL.createObjectURL(f);
+        img.src = URL.createObjectURL(f);
       };
 
-      o.querySelector('#cancelProfileBtn').onclick=()=>o.remove();
-      o.querySelector('#saveProfileBtn').onclick=()=>{
-        const newName=o.querySelector('#profileUsername').value.trim() || username;
+      o.querySelector('#cancelProfileBtn').onclick = () => o.remove();
+
+      o.querySelector('#saveProfileBtn').onclick = () => {
+        const newName = o.querySelector('#profileUsername').value.trim() || username;
         const dataURL = hasDrawn || loaded ? canvas.toDataURL('image/png') : p.profile_picture;
-        const s2=loadStore();
-        s2.profiles[newName] = { 
-          ...s2.profiles[username], 
-          username:newName, 
-          profile_picture:dataURL, 
-          pfp_bg_color:bgPicker.value, 
-          pfp_brush_color:brushColor, 
-          pfp_brush_width:lineWidth 
+
+        const s2 = loadStore();
+        s2.profiles[newName] = {
+          ...s2.profiles[username],
+          username: newName,
+          profile_picture: dataURL,
+          pfp_bg_color: bgPicker.value,
+          pfp_brush_color: brushColor,
+          pfp_brush_width: lineWidth
         };
-        if(newName!==username){
+
+        if (newName !== username) {
           delete s2.profiles[username];
-          s2.messages.forEach(m=>{ if(m.username===username) m.username=newName; });
-          username=newName;
+          s2.messages.forEach(m => {
+            if (m.username === username) m.username = newName;
+          });
+          username = newName;
           localStorage.setItem('username', username);
         }
+
         saveStore(s2);
         o.remove();
-        if(currentChannel==='stats') loadStats();
+
+        if (currentChannel === 'stats') loadStats();
         else loadMessages(currentChannel);
+
         alert('Profile updated!');
       };
+    }
+
+    function openSnakeFullscreen(){ 
+      openOverlay(`<iframe src="https://frogdafish.github.io/Snek"></iframe>`); 
+    }
+    
+    function openSlopeFullscreen(){ 
+      openOverlay(`<iframe src="slope.html"></iframe>`); 
     }
 
     function switchChannel(channel){
@@ -320,49 +442,6 @@
       if(channel==='stats') loadStats();
       else if(channel==='shop') loadShop();
       else loadMessages(channel);
-       function loadShop(){
-      const s=loadStore();
-      const p=s.profiles[username];
-      $('messages').innerHTML='';
-      const mk=(title,owned,buyText,playId,buyId,cost)=>{
-        const div=document.createElement('div');
-        div.className='message';
-        div.innerHTML = owned ? `<strong>${title}</strong><br><button class="shop-btn" id="${playId}">Play (Fullscreen)</button>` : `<strong>${title}</strong><br>Cost: ${cost} coins<br><button class="shop-btn" id="${buyId}">${buyText}</button>`;
-        $('messages').appendChild(div);
-      };
-      mk('🐍 Snake Game', p.owned_snake, 'Buy Snake (25 coins)', 'playSnakeBtn', 'buySnakeBtn', 25);
-      mk('📈 Slope Game', p.owned_slope, 'Buy Slope (50 coins)', 'playSlopeBtn', 'buySlopeBtn', 50);
-      if(p.owned_snake) $('playSnakeBtn').onclick = openSnakeFullscreen;
-      else $('buySnakeBtn').onclick = ()=>{
-        const s2=loadStore();
-        const p2=s2.profiles[username];
-        if(p2.coins<25) return alert('You need 25 coins to buy Snake!');
-        p2.coins-=25;
-        p2.owned_snake=true;
-        saveStore(s2);
-        alert('You bought Snake!');
-        loadShop();
-        openSnakeFullscreen();
-      };
-      if(p.owned_slope) $('playSlopeBtn').onclick = openSlopeFullscreen;
-      else $('buySlopeBtn').onclick = ()=>{
-        const s2=loadStore();
-        const p2=s2.profiles[username];
-        if(p2.coins<50) return alert('You need 50 coins to buy Slope!');
-        p2.coins-=50;
-        p2.owned_slope=true;
-        saveStore(s2);
-        alert('You bought Slope!');
-        loadShop();
-        openSlopeFullscreen();
-      };
-    }
-
-    function openSnakeFullscreen(){ 
-      openOverlay(`<iframe src="https://frogdafish.github.io/Snek"></iframe>`); 
-    }
-    function openSlopeFullscreen(){ 
-      openOverlay(`<iframe src="slope.html"></iframe>`); 
     }
 
     $('sendBtn').addEventListener('click', sendMessage);
