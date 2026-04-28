@@ -569,6 +569,9 @@
 
         const { error } = await supabase.from('messages').insert(message);
         if (error) return alert('Message failed to send.');
+        profile.xp = (profile.xp || 0) + 1;
+        profile.coins = (profile.coins || 0) + 1;
+        await saveProfile(profile);
         $('messageInput').value = '';
         await openGamingThread(currentThread);
         return;
@@ -585,6 +588,9 @@
 
         const { error } = await supabase.from('messages').insert(message);
         if (error) return alert('Message failed to send.');
+        profile.xp = (profile.xp || 0) + 1;
+        profile.coins = (profile.coins || 0) + 1;
+        await saveProfile(profile);
         $('messageInput').value = '';
         await openSuggestionThread(currentThread);
         return;
@@ -608,6 +614,10 @@
 
       const { error } = await supabase.from('messages').insert(message);
       if (error) return alert('Message failed to send.');
+
+      profile.xp = (profile.xp || 0) + 1;
+      profile.coins = (profile.coins || 0) + 1;
+      await saveProfile(profile);
 
       $('messageInput').value='';
 
