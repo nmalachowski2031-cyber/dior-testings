@@ -40,6 +40,7 @@
     .admin-user-actions{display:flex;gap:8px;flex-wrap:wrap}
     .admin-mute-btn{background:#ff6b6b}
     .admin-unmute-btn{background:#43b581}
+    .admin-action-btn{background:#5865f2}
     .thread-card{padding:12px;background:#2f3136;border:1px solid #202225;border-radius:8px;cursor:pointer;margin-bottom:10px}
     .thread-card:hover{background:#35393f}
     .thread-title{font-weight:bold;color:#fff}
@@ -69,8 +70,8 @@
     <div class="channel" data-channel="adaminchat" id="adminChatChannel" style="display:none;"># ad da min chat</div>
     <div class="channel" data-channel="stats"># stats</div>
     <div class="channel" data-channel="shop"># shop</div>
-    <div class="admin-panel" id="adminPanelBtn"> Admin Panel</div>
-    <div class="edit-profile" id="editProfileBtn"> Edit Profile</div>
+    <div class="admin-panel" id="adminPanelBtn">Admin Panel</div>
+    <div class="edit-profile" id="editProfileBtn">Edit Profile</div>
   </div>
 
   <div class="chat">
@@ -634,7 +635,6 @@
     }
 
     async function loadShop(token = loadToken){
-      const p = await loadProfile(username);
       if (token !== loadToken || currentChannel !== 'shop') return;
       $('messages').innerHTML = '<div class="message"><div style="text-align:center;color:#b9bbbe">Games are now in #gaming! Shop coming soon...</div></div>';
     }
@@ -648,6 +648,75 @@
       return o;
     }
 
+    async function openProfileEditor(){
+      const profile = await loadProfile(username);
+      const o = openOverlay(`
+        <div style="padding:18px;color:#fff;overflow:auto;height:100%;box-sizing:border-box">
+          <h3 style="margin-top:0">Edit Profile</h3>
+          <div class="modal-field">
+            <label>Username</label>
+            <input id="peUsername" type="text" value="${profile.username || username}">
+          </div>
+          <div class="modal-field">
+            <label>Profile Picture URL</label>
+            <input id="pePfp" type="text" value="${profile.profile_picture || ''}" placeholder="Image URL">
+          </div>
+          <div class="modal-field">
+            <label>Brush Color</label>
+            <input id="peBrushColor" type="text" value="${profile.pfp_brush_color || defaultProfile.pfp_brush_color}">
+          </div>
+          <div class="modal-field">
+            <label>Brush Width</label>
+            <input id="peBrushWidth" type="number" min="1" max="50" value="${profile.pfp_brush_width || defaultProfile.pfp_brush_width}">
+          </div>
+          <div class="modal-field">
+            <label>Background Color</label>
+            <input id="peBgColor" type="text" value="${profile.pfp_bg_color || defaultProfile.pfp_bg_color}">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button id="saveProfileBtn">Save</button>
+            <button id="cancelProfileBtn" class="thread-delete-btn">Cancel</button>
+          </div>
+        </div>
+      `);
+
+      o.querySelector('#cancelProfileBtn').onclick = () => o.remove();
+
+      o.querySelector('#saveProfileBtn').onclick = async () => {
+        const newUsername = o.querySelector('#peUsername').value.trim();
+        const profile_picture = o.querySelector('#pePfp').value.trim();
+        const pfp_brush_color = o.querySelector('#peBrushColor').value.trim();
+        const pfp_brush_width = Number(o.querySelector('#peBrushWidth').value);
+        const pfp_bg_color = o.querySelector('#peBgColor').value.trim();
+
+        if (!newUsername) return alert('Username is required.');
+
+        const updated = {
+          ...defaultProfile,
+          ...profile,
+          username: newUsername,
+          profile_picture: profile_picture || null,
+          pfp_brush_color: pfp_brush_color || defaultProfile.pfp_brush_color,
+          pfp_brush_width: Number.isFinite(pfp_brush_width) ? pfp_brush_width : defaultProfile.pfp_brush_width,
+          pfp_bg_color: pfp_bg_color || defaultProfile.pfp_bg_color
+        };
+
+        await supabase.from('profiles').upsert(updated);
+
+        if (newUsername !== username) {
+          const oldUsername = username;
+          username = newUsername;
+          localStorage.setItem('username', newUsername);
+          avatarCache.delete(oldUsername);
+        }
+
+        await refreshAdminButton();
+        await refreshAdminVisibility();
+        o.remove();
+        await switchChannel(currentChannel);
+      };
+    }
+
     function parseRGB(colorStr) {
       if (!colorStr || !colorStr.includes('rgb')) return {r:255, g:255, b:255};
       const match = colorStr.match(/rgb\((\d+),(\d+),(\d+)\)/);
@@ -655,14 +724,92 @@
     }
 
     function createPfpEditor(profile){ }
-    function openProfileEditor(){ }
+    function openProfileEditorLegacy(){ }
 
     function openSnakeFullscreen(){ openOverlay(`<iframe src="https://frogdafish.github.io/Snek"></iframe>`); }
     function openSlopeFullscreen(){ openOverlay(`<iframe src="slope.html"></iframe>`); }
     function openBartFullscreen(){ openOverlay(`<iframe src="bartblast.html"></iframe>`); }
     function openSuperLiquidSoccerFullscreen(){ openOverlay(`<iframe src="https://blueskywrld.github.io/game3/"></iframe>`); }
 
-    async function openAdminPanel(){ }
+    async function openAdminPanel(){
+      const profile = await loadProfile(username);
+      if (!profile?.is_admin) return alert('Admin access only.');
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('username, level, xp, coins, muted, muted_until, mute_reason, is_admin')
+        .order('username', { ascending: true });
+
+      const o = openOverlay(`
+        <div class="admin-list">
+          <h3 style="margin-top:0">Admin Panel</h3>
+          <div id="adminUsersWrap"></div>
+        </div>
+      `);
+
+      const wrap = o.querySelector('#adminUsersWrap');
+      (profiles || []).forEach(p => {
+        const user = document.createElement('div');
+        user.className = 'admin-user';
+        user.innerHTML = `
+          <div class="admin-user-info">
+            <div class="admin-user-name">${p.username}</div>
+            <div class="admin-user-stats">
+              Level ${p.level || 1} • XP ${p.xp || 0} • Coins ${p.coins || 0} • Admin ${p.is_admin ? 'Yes' : 'No'}
+              ${p.muted || p.muted_until ? `<br>Muted: ${p.mute_reason || 'No reason'}` : ''}
+            </div>
+          </div>
+          <div class="admin-user-actions">
+            <button class="admin-action-btn" data-action="xp" data-user="${p.username}">Add XP</button>
+            <button class="admin-action-btn" data-action="coins" data-user="${p.username}">Add Coins</button>
+            <button class="admin-mute-btn" data-action="mute" data-user="${p.username}">Mute</button>
+            <button class="admin-unmute-btn" data-action="unmute" data-user="${p.username}">Unmute</button>
+          </div>
+        `;
+        wrap.appendChild(user);
+      });
+
+      o.querySelectorAll('[data-action="xp"]').forEach(btn => btn.onclick = async () => {
+        const target = btn.dataset.user;
+        const amount = Number(prompt('How much XP to add?'));
+        if (!Number.isFinite(amount)) return;
+        const p = await loadProfile(target);
+        p.xp = (p.xp || 0) + amount;
+        await saveProfile(p);
+        await openAdminPanel();
+      });
+
+      o.querySelectorAll('[data-action="coins"]').forEach(btn => btn.onclick = async () => {
+        const target = btn.dataset.user;
+        const amount = Number(prompt('How many coins to add?'));
+        if (!Number.isFinite(amount)) return;
+        const p = await loadProfile(target);
+        p.coins = (p.coins || 0) + amount;
+        await saveProfile(p);
+        await openAdminPanel();
+      });
+
+      o.querySelectorAll('[data-action="mute"]').forEach(btn => btn.onclick = async () => {
+        const target = btn.dataset.user;
+        const reason = prompt('Mute reason?') || 'No reason specified';
+        const p = await loadProfile(target);
+        p.muted = true;
+        p.mute_reason = reason;
+        p.muted_until = null;
+        await saveProfile(p);
+        await openAdminPanel();
+      });
+
+      o.querySelectorAll('[data-action="unmute"]').forEach(btn => btn.onclick = async () => {
+        const target = btn.dataset.user;
+        const p = await loadProfile(target);
+        p.muted = false;
+        p.muted_until = null;
+        p.mute_reason = null;
+        await saveProfile(p);
+        await openAdminPanel();
+      });
+    }
 
     async function openCreateThreadModal(){
       const channelName = currentChannel === 'gaming' ? 'Gaming' : 'Suggestion';
@@ -679,7 +826,7 @@
           </div>
           <div style="display:flex;gap:8px;margin-top:12px">
             <button id="createThreadBtn">Create</button>
-            <button id="cancelThreadBtn" class="cancel-btn">Cancel</button>
+            <button id="cancelThreadBtn" class="thread-delete-btn">Cancel</button>
           </div>
         </div>
       `);
