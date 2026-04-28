@@ -104,6 +104,7 @@
       xp: 0,
       level: 1,
       coins: 0,
+      last_coin_timestamp: 0, 
       profile_picture: null,
       muted_until: null,
       mute_reason: null,
@@ -558,6 +559,23 @@
         return alert(`You are muted!\n\nReason: ${profile.mute_reason || 'No reason specified'}`);
       }
 
+      // XP and Leveling Logic
+      profile.xp = (profile.xp || 0) + 1;
+      const newLevel = Math.floor(profile.xp / 100) + 1;
+      if (newLevel > (profile.level || 1)) {
+        profile.level = newLevel;
+      }
+
+      // Coin Cooldown Logic (2 minutes = 120,000ms)
+      const now = Date.now();
+      const lastCoinTime = profile.last_coin_timestamp || 0;
+      if (now - lastCoinTime >= 120000) {
+        profile.coins = (profile.coins || 0) + 1;
+        profile.last_coin_timestamp = now;
+      }
+      
+      await saveProfile(profile);
+
       if (currentChannel === 'gaming' && currentThreadId) {
         const message = {
           channel: currentChannel,
@@ -569,9 +587,6 @@
 
         const { error } = await supabase.from('messages').insert(message);
         if (error) return alert('Message failed to send.');
-        profile.xp = (profile.xp || 0) + 1;
-        profile.coins = (profile.coins || 0) + 1;
-        await saveProfile(profile);
         $('messageInput').value = '';
         await openGamingThread(currentThread);
         return;
@@ -588,9 +603,6 @@
 
         const { error } = await supabase.from('messages').insert(message);
         if (error) return alert('Message failed to send.');
-        profile.xp = (profile.xp || 0) + 1;
-        profile.coins = (profile.coins || 0) + 1;
-        await saveProfile(profile);
         $('messageInput').value = '';
         await openSuggestionThread(currentThread);
         return;
@@ -615,10 +627,6 @@
       const { error } = await supabase.from('messages').insert(message);
       if (error) return alert('Message failed to send.');
 
-      profile.xp = (profile.xp || 0) + 1;
-      profile.coins = (profile.coins || 0) + 1;
-      await saveProfile(profile);
-
       $('messageInput').value='';
 
       const avatar = await avatarFor(username);
@@ -641,7 +649,7 @@
       const p = await loadProfile(username);
       if (token !== loadToken || currentChannel !== 'stats') return;
       $('messages').innerHTML='';
-      await addMessage('System', `${p.username}<br><strong>Level:</strong> ${p.level}<br><strong>XP:</strong> ${p.xp}<br><strong>XP to next level:</strong> ${Math.max((p.level||1)*100-(p.xp||0),0)}<br><strong>Coins:</strong> ${p.coins}<br><strong>Admin:</strong> ${p.is_admin ? 'Yes' : 'No'}`, await avatarFor(p.username));
+      await addMessage('System', `${p.username}<br><strong>Level:</strong> ${p.level}<br><strong>XP:</strong> ${p.xp}<br><strong>XP to next level:</strong> ${Math.max((p.level)*100-(p.xp||0),0)}<br><strong>Coins:</strong> ${p.coins}<br><strong>Admin:</strong> ${p.is_admin ? 'Yes' : 'No'}`, await avatarFor(p.username));
     }
 
     async function loadShop(token = loadToken){
@@ -726,15 +734,6 @@
         await switchChannel(currentChannel);
       };
     }
-
-    function parseRGB(colorStr) {
-      if (!colorStr || !colorStr.includes('rgb')) return {r:255, g:255, b:255};
-      const match = colorStr.match(/rgb\((\d+),(\d+),(\d+)\)/);
-      return { r: parseInt(match?.[1] || '255'), g: parseInt(match?.[2] || '255'), b: parseInt(match?.[3] || '255') };
-    }
-
-    function createPfpEditor(profile){ }
-    function openProfileEditorLegacy(){ }
 
     function openSnakeFullscreen(){ openOverlay(`<iframe src="https://frogdafish.github.io/Snek"></iframe>`); }
     function openSlopeFullscreen(){ openOverlay(`<iframe src="slope.html"></iframe>`); }
