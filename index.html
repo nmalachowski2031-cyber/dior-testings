@@ -58,6 +58,17 @@
     .game-card{padding:15px;background:#2f3136;border:1px solid #202225;border-radius:8px;text-align:center}
     .game-card h4{margin:0 0 10px;font-size:16px;color:#fff}
     .game-card button{width:100%;margin:5px 0}
+    .shop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:15px;margin-top:10px}
+    .shop-card{padding:15px;background:#2f3136;border:1px solid #202225;border-radius:8px}
+    .shop-card h4{margin:0 0 10px;font-size:16px;color:#fff}
+    .shop-card p{margin:0 0 10px;color:#b9bbbe;font-size:13px;line-height:1.4}
+    .shop-card button{width:100%;margin:5px 0}
+    .profile-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin:10px 0 18px}
+    .pfp-crown-frame{position:relative;width:128px;height:128px}
+    .pfp-crown-frame .pfp-img{width:128px;height:128px;border-radius:50%;object-fit:cover;border:4px solid #fff;background:#5865f2;display:block}
+    .pfp-crown-frame .crown-badge{position:absolute;left:-18px;top:-18px;width:72px;height:72px;transform:rotate(-18deg);pointer-events:none;display:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+    .crown-badge svg{width:100%;height:100%}
+    .shop-small{font-size:12px;color:#b9bbbe}
   </style>
 </head>
 <body>
@@ -104,7 +115,7 @@
       xp: 0,
       level: 1,
       coins: 0,
-      last_coin_timestamp: 0, 
+      last_coin_timestamp: 0,
       profile_picture: null,
       muted_until: null,
       mute_reason: null,
@@ -116,7 +127,9 @@
       is_admin: false,
       pfp_brush_color: 'rgb(255,255,255)',
       pfp_brush_width: 10,
-      pfp_bg_color: '#40444b'
+      pfp_bg_color: '#40444b',
+      has_crown: false,
+      crown_equipped: false
     };
 
     if (!username) {
@@ -125,7 +138,7 @@
       await supabase.from('profiles').upsert({ username, ...defaultProfile });
     }
 
-    const getFallbackAvatar = n => `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=7289da&color=fff&rounded=true&size=64`;
+    const getFallbackAvatar = n => `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=7289da&color=fff&rounded=true&size=128`;
     const setAvatarFallback = (img, n) => img.onerror = () => { img.onerror = null; img.src = getFallbackAvatar(n); };
 
     async function loadProfile(name) {
@@ -162,34 +175,62 @@
       if (missing.length) {
         const { data } = await supabase
           .from('profiles')
-          .select('username, profile_picture')
+          .select('username, profile_picture, has_crown, crown_equipped')
           .in('username', missing);
 
         const rows = data || [];
         for (const name of missing) {
           const profile = rows.find(p => p.username === name);
-          avatarCache.set(name, profile?.profile_picture || getFallbackAvatar(name));
+          avatarCache.set(name, {
+            avatar: profile?.profile_picture || getFallbackAvatar(name),
+            has_crown: !!profile?.has_crown,
+            crown_equipped: !!profile?.crown_equipped
+          });
         }
       }
 
       const out = {};
-      for (const name of unique) out[name] = avatarCache.get(name) || getFallbackAvatar(name);
+      for (const name of unique) {
+        const v = avatarCache.get(name) || { avatar: getFallbackAvatar(name), has_crown:false, crown_equipped:false };
+        out[name] = v;
+      }
       return out;
     }
 
     async function avatarFor(name){
-      if (avatarCache.has(name)) return avatarCache.get(name);
+      if (avatarCache.has(name)) return avatarCache.get(name).avatar || avatarCache.get(name);
       const profile = await loadProfile(name);
       const avatar = profile?.profile_picture || getFallbackAvatar(name);
-      avatarCache.set(name, avatar);
-      return avatar;
+      const data = { avatar, has_crown: !!profile?.has_crown, crown_equipped: !!profile?.crown_equipped };
+      avatarCache.set(name, data);
+      return data.avatar;
     }
 
-    async function addMessage(user, text, avatarUrl=null){
+    function crownSVG(){
+      return `
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M8 22L17 30L26 14L34 30L42 12L50 30L56 22L54 50H10L8 22Z" fill="#F4C542" stroke="#B8860B" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M10 50H54" stroke="#B8860B" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="17" cy="30" r="3.5" fill="#FFD966" stroke="#B8860B" stroke-width="1.5"/>
+          <circle cx="26" cy="14" r="3.5" fill="#FFD966" stroke="#B8860B" stroke-width="1.5"/>
+          <circle cx="34" cy="30" r="3.5" fill="#FFD966" stroke="#B8860B" stroke-width="1.5"/>
+          <circle cx="42" cy="12" r="3.5" fill="#FFD966" stroke="#B8860B" stroke-width="1.5"/>
+          <circle cx="50" cy="30" r="3.5" fill="#FFD966" stroke="#B8860B" stroke-width="1.5"/>
+        </svg>`;
+    }
+
+    async function addMessage(user, text, avatarUrl=null, crown=false){
       const div=document.createElement('div');
       div.className='message';
       const safe = String(text).replace(/\\n/g,'<br>');
-      div.innerHTML=`<div class="message-row"><img class="avatar" src="${avatarUrl||await avatarFor(user)}" alt="avatar"><div class="message-content"><span class="username">${user}</span> ${safe}</div></div>`;
+      div.innerHTML = `
+        <div class="message-row">
+          <div style="position:relative;flex-shrink:0">
+            <img class="avatar" src="${avatarUrl||await avatarFor(user)}" alt="avatar">
+            ${crown ? `<div style="position:absolute;left:-14px;top:-14px;width:28px;height:28px;transform:rotate(-18deg);pointer-events:none">${crownSVG()}</div>` : ``}
+          </div>
+          <div class="message-content"><span class="username">${user}</span> ${safe}</div>
+        </div>`;
       const img = div.querySelector('.avatar');
       setAvatarFallback(img, user);
       $('messages').appendChild(div);
@@ -201,6 +242,20 @@
       $('messageInput').placeholder = (channel === 'stats' || channel === 'shop') ? '' : `Message #${channel}`;
       $('messageInput').disabled = false;
       $('sendBtn').style.display = 'inline-block';
+    }
+
+    function renderProfileWithCrown(profile) {
+      const avatarUrl = profile?.profile_picture || getFallbackAvatar(profile?.username || username);
+      const crownShown = profile?.has_crown && profile?.crown_equipped;
+      return `
+        <div class="profile-wrap">
+          <div class="pfp-crown-frame">
+            <img class="pfp-img" src="${avatarUrl}" alt="profile">
+            <div class="crown-badge" style="display:${crownShown ? 'block' : 'none'}">${crownSVG()}</div>
+          </div>
+          <div style="font-weight:bold">${profile?.username || username}</div>
+        </div>
+      `;
     }
 
     async function loadMessages(channel, token = ++loadToken){
@@ -228,10 +283,14 @@
 
       messagesEl.innerHTML = msgs.map(m => {
         const safe = String(m.text).replace(/\\n/g, '<br>');
+        const crown = avatars[m.username]?.has_crown && avatars[m.username]?.crown_equipped;
         return `
       <div class="message">
         <div class="message-row">
-          <img class="avatar" src="${avatars[m.username]}" alt="avatar">
+          <div style="position:relative;flex-shrink:0">
+            <img class="avatar" src="${avatars[m.username].avatar}" alt="avatar">
+            ${crown ? `<div style="position:absolute;left:-14px;top:-14px;width:28px;height:28px;transform:rotate(-18deg);pointer-events:none">${crownSVG()}</div>` : ``}
+          </div>
           <div class="message-content">
             <span class="username">${m.username}</span> ${safe}
           </div>
@@ -466,12 +525,27 @@
         div.className = 'message';
         div.innerHTML = `
           <div class="message-row">
-            <img class="avatar" src="${avatars[m.username]}" alt="avatar">
+            <img class="avatar" src="${avatars[m.username].avatar}" alt="avatar">
             <div class="message-content">
               <span class="username">${m.username}</span> ${String(m.text).replace(/\\n/g, '<br>')}
             </div>
           </div>`;
-        setAvatarFallback(div.querySelector('.avatar'), m.username);
+        const img = div.querySelector('.avatar');
+        setAvatarFallback(img, m.username);
+        if (avatars[m.username].has_crown && avatars[m.username].crown_equipped) {
+          const row = div.querySelector('.message-row');
+          const crown = document.createElement('div');
+          crown.style.position = 'absolute';
+          crown.style.left = '-14px';
+          crown.style.top = '-14px';
+          crown.style.width = '28px';
+          crown.style.height = '28px';
+          crown.style.transform = 'rotate(-18deg)';
+          crown.style.pointerEvents = 'none';
+          crown.innerHTML = crownSVG();
+          row.style.position = 'relative';
+          row.insertBefore(crown, row.firstChild);
+        }
         $('messages').appendChild(div);
       });
 
@@ -533,12 +607,27 @@
         div.className = 'message';
         div.innerHTML = `
           <div class="message-row">
-            <img class="avatar" src="${avatars[m.username]}" alt="avatar">
+            <img class="avatar" src="${avatars[m.username].avatar}" alt="avatar">
             <div class="message-content">
               <span class="username">${m.username}</span> ${String(m.text).replace(/\\n/g, '<br>')}
             </div>
           </div>`;
-        setAvatarFallback(div.querySelector('.avatar'), m.username);
+        const img = div.querySelector('.avatar');
+        setAvatarFallback(img, m.username);
+        if (avatars[m.username].has_crown && avatars[m.username].crown_equipped) {
+          const row = div.querySelector('.message-row');
+          const crown = document.createElement('div');
+          crown.style.position = 'absolute';
+          crown.style.left = '-14px';
+          crown.style.top = '-14px';
+          crown.style.width = '28px';
+          crown.style.height = '28px';
+          crown.style.transform = 'rotate(-18deg)';
+          crown.style.pointerEvents = 'none';
+          crown.innerHTML = crownSVG();
+          row.style.position = 'relative';
+          row.insertBefore(crown, row.firstChild);
+        }
         $('messages').appendChild(div);
       });
 
@@ -559,21 +648,17 @@
         return alert(`You are muted!\n\nReason: ${profile.mute_reason || 'No reason specified'}`);
       }
 
-      // XP and Leveling Logic
       profile.xp = (profile.xp || 0) + 1;
       const newLevel = Math.floor(profile.xp / 100) + 1;
-      if (newLevel > (profile.level || 1)) {
-        profile.level = newLevel;
-      }
+      if (newLevel > (profile.level || 1)) profile.level = newLevel;
 
-      // Coin Cooldown Logic (2 minutes = 120,000ms)
       const now = Date.now();
       const lastCoinTime = profile.last_coin_timestamp || 0;
       if (now - lastCoinTime >= 120000) {
         profile.coins = (profile.coins || 0) + 1;
         profile.last_coin_timestamp = now;
       }
-      
+
       await saveProfile(profile);
 
       if (currentChannel === 'gaming' && currentThreadId) {
@@ -649,12 +734,63 @@
       const p = await loadProfile(username);
       if (token !== loadToken || currentChannel !== 'stats') return;
       $('messages').innerHTML='';
-      await addMessage('System', `${p.username}<br><strong>Level:</strong> ${p.level}<br><strong>XP:</strong> ${p.xp}<br><strong>XP to next level:</strong> ${Math.max((p.level)*100-(p.xp||0),0)}<br><strong>Coins:</strong> ${p.coins}<br><strong>Admin:</strong> ${p.is_admin ? 'Yes' : 'No'}`, await avatarFor(p.username));
+      const crown = p.has_crown && p.crown_equipped;
+      await addMessage('System', `${renderProfileWithCrown(p)}<strong>Level:</strong> ${p.level}<br><strong>XP:</strong> ${p.xp}<br><strong>XP to next level:</strong> ${Math.max((p.level||1)*100-(p.xp||0),0)}<br><strong>Coins:</strong> ${p.coins}<br><strong>Admin:</strong> ${p.is_admin ? 'Yes' : 'No'}<br><strong>Crown:</strong> ${p.has_crown ? (p.crown_equipped ? 'Equipped' : 'Owned, not equipped') : 'Not owned'}`, await avatarFor(p.username), crown);
     }
 
     async function loadShop(token = loadToken){
       if (token !== loadToken || currentChannel !== 'shop') return;
-      $('messages').innerHTML = '<div class="message"><div style="text-align:center;color:#b9bbbe">Games are now in #gaming! Shop coming soon...</div></div>';
+      const p = await loadProfile(username);
+      const canBuy = (p.coins || 0) >= 5;
+      $('messages').innerHTML = `
+        <div class="shop-grid">
+          <div class="shop-card">
+            <h4>Crown</h4>
+            <p>Cost: 5 gold. Once bought, you can equip or unequip it for free. When equipped, it appears on your profile picture and on your messages.</p>
+            <button id="buyCrownBtn" class="shop-btn" ${p.has_crown ? 'disabled' : ''}>${p.has_crown ? 'Owned' : 'Buy (5 gold)'}</button>
+            <button id="toggleCrownBtn" class="shop-btn" ${p.has_crown ? '' : 'disabled'}>${p.crown_equipped ? 'Unequip Crown' : 'Equip Crown'}</button>
+            <div class="shop-small">Your gold: ${p.coins || 0}</div>
+          </div>
+          <div class="shop-card">
+            <h4>Shop Info</h4>
+            <p>More items can be added here later. The crown is now available and syncs with your profile.</p>
+          </div>
+        </div>
+      `;
+
+      $('buyCrownBtn').onclick = async () => {
+        const profile = await loadProfile(username);
+        if (profile.has_crown) return alert('You already own the crown.');
+        if ((profile.coins || 0) < 5) return alert('You need 5 gold to buy the crown!');
+        profile.coins = (profile.coins || 0) - 5;
+        profile.has_crown = true;
+        profile.crown_equipped = true;
+        await saveProfile(profile);
+        avatarCache.delete(username);
+        alert('You bought the crown!');
+        await loadShop();
+        await refreshProfileDisplays();
+      };
+
+      $('toggleCrownBtn').onclick = async () => {
+        const profile = await loadProfile(username);
+        if (!profile.has_crown) return;
+        profile.crown_equipped = !profile.crown_equipped;
+        await saveProfile(profile);
+        avatarCache.delete(username);
+        await loadShop();
+        await refreshProfileDisplays();
+      };
+    }
+
+    async function refreshProfileDisplays(){
+      if (currentChannel === 'stats') await loadStats();
+      if (currentChannel === 'shop') await loadShop();
+      if (currentChannel === 'general' || currentChannel === 'coding' || currentChannel === 'gaming' || currentChannel === 'suggestions') {
+        if (currentChannel === 'gaming' && currentThreadId && currentThread) await openGamingThread(currentThread);
+        else if (currentChannel === 'suggestions' && currentThreadId && currentThread) await openSuggestionThread(currentThread);
+        else await switchChannel(currentChannel);
+      }
     }
 
     function openOverlay(innerHTML){
@@ -671,6 +807,13 @@
       const o = openOverlay(`
         <div style="padding:18px;color:#fff;overflow:auto;height:100%;box-sizing:border-box">
           <h3 style="margin-top:0">Edit Profile</h3>
+          <div class="profile-wrap">
+            <div class="pfp-crown-frame">
+              <img class="pfp-img" src="${profile.profile_picture || getFallbackAvatar(username)}" alt="profile">
+              <div class="crown-badge" style="display:${profile.has_crown && profile.crown_equipped ? 'block' : 'none'}">${crownSVG()}</div>
+            </div>
+            <div style="font-weight:bold">${profile.username || username}</div>
+          </div>
           <div class="modal-field">
             <label>Username</label>
             <input id="peUsername" type="text" value="${profile.username || username}">
@@ -746,7 +889,7 @@
 
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('username, level, xp, coins, muted, muted_until, mute_reason, is_admin')
+        .select('username, level, xp, coins, muted, muted_until, mute_reason, is_admin, has_crown, crown_equipped')
         .order('username', { ascending: true });
 
       const o = openOverlay(`
@@ -764,7 +907,8 @@
           <div class="admin-user-info">
             <div class="admin-user-name">${p.username}</div>
             <div class="admin-user-stats">
-              Level ${p.level || 1} • XP ${p.xp || 0} • Coins ${p.coins || 0} • Admin ${p.is_admin ? 'Yes' : 'No'}
+              Level ${p.level || 1} • XP ${p.xp || 0} • Coins ${p.coins || 0} • Admin ${p.is_admin ? 'Yes' : 'No'}<br>
+              Crown: ${p.has_crown ? (p.crown_equipped ? 'Equipped' : 'Owned, not equipped') : 'Not owned'}
               ${p.muted || p.muted_until ? `<br>Muted: ${p.mute_reason || 'No reason'}` : ''}
             </div>
           </div>
@@ -784,6 +928,7 @@
         if (!Number.isFinite(amount)) return;
         const p = await loadProfile(target);
         p.xp = (p.xp || 0) + amount;
+        p.level = Math.floor((p.xp || 0) / 100) + 1;
         await saveProfile(p);
         await openAdminPanel();
       });
