@@ -58,17 +58,6 @@
     .game-card{padding:15px;background:#2f3136;border:1px solid #202225;border-radius:8px;text-align:center}
     .game-card h4{margin:0 0 10px;font-size:16px;color:#fff}
     .game-card button{width:100%;margin:5px 0}
-    .shop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:15px;margin-top:10px}
-    .shop-card{padding:15px;background:#2f3136;border:1px solid #202225;border-radius:8px}
-    .shop-card h4{margin:0 0 10px;font-size:16px;color:#fff}
-    .shop-card p{margin:0 0 10px;color:#b9bbbe;font-size:13px;line-height:1.4}
-    .shop-card button{width:100%;margin:5px 0}
-    .profile-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin:10px 0 18px}
-    .pfp-crown-frame{position:relative;width:128px;height:128px}
-    .pfp-crown-frame .pfp-img{width:128px;height:128px;border-radius:50%;object-fit:cover;border:4px solid #fff;background:#5865f2;display:block}
-    .pfp-crown-frame .crown-badge{position:absolute;left:-18px;top:-18px;width:72px;height:72px;transform:rotate(-18deg);pointer-events:none;display:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
-    .crown-badge svg{width:100%;height:100%}
-    .shop-small{font-size:12px;color:#b9bbbe}
   </style>
 </head>
 <body>
@@ -115,7 +104,6 @@
       xp: 0,
       level: 1,
       coins: 0,
-      last_coin_timestamp: 0,
       profile_picture: null,
       muted_until: null,
       mute_reason: null,
@@ -127,9 +115,7 @@
       is_admin: false,
       pfp_brush_color: 'rgb(255,255,255)',
       pfp_brush_width: 10,
-      pfp_bg_color: '#40444b',
-      has_crown: false,
-      crown_equipped: false
+      pfp_bg_color: '#40444b'
     };
 
     if (!username) {
@@ -138,7 +124,7 @@
       await supabase.from('profiles').upsert({ username, ...defaultProfile });
     }
 
-    const getFallbackAvatar = n => `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=7289da&color=fff&rounded=true&size=128`;
+    const getFallbackAvatar = n => `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=7289da&color=fff&rounded=true&size=64`;
     const setAvatarFallback = (img, n) => img.onerror = () => { img.onerror = null; img.src = getFallbackAvatar(n); };
 
     async function loadProfile(name) {
@@ -175,62 +161,34 @@
       if (missing.length) {
         const { data } = await supabase
           .from('profiles')
-          .select('username, profile_picture, has_crown, crown_equipped')
+          .select('username, profile_picture')
           .in('username', missing);
 
         const rows = data || [];
         for (const name of missing) {
           const profile = rows.find(p => p.username === name);
-          avatarCache.set(name, {
-            avatar: profile?.profile_picture || getFallbackAvatar(name),
-            has_crown: !!profile?.has_crown,
-            crown_equipped: !!profile?.crown_equipped
-          });
+          avatarCache.set(name, profile?.profile_picture || getFallbackAvatar(name));
         }
       }
 
       const out = {};
-      for (const name of unique) {
-        const v = avatarCache.get(name) || { avatar: getFallbackAvatar(name), has_crown:false, crown_equipped:false };
-        out[name] = v;
-      }
+      for (const name of unique) out[name] = avatarCache.get(name) || getFallbackAvatar(name);
       return out;
     }
 
     async function avatarFor(name){
-      if (avatarCache.has(name)) return avatarCache.get(name).avatar || avatarCache.get(name);
+      if (avatarCache.has(name)) return avatarCache.get(name);
       const profile = await loadProfile(name);
       const avatar = profile?.profile_picture || getFallbackAvatar(name);
-      const data = { avatar, has_crown: !!profile?.has_crown, crown_equipped: !!profile?.crown_equipped };
-      avatarCache.set(name, data);
-      return data.avatar;
+      avatarCache.set(name, avatar);
+      return avatar;
     }
 
-    function crownSVG(){
-      return `
-        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M8 22L17 30L26 14L34 30L42 12L50 30L56 22L54 50H10L8 22Z" fill="#F4C542" stroke="#B8860B" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M10 50H54" stroke="#B8860B" stroke-width="3" stroke-linecap="round"/>
-          <circle cx="17" cy="30" r="3.5" fill="#FFD966" stroke="#B8860B" stroke-width="1.5"/>
-          <circle cx="26" cy="14" r="3.5" fill="#FFD966" stroke="#B8860B" stroke-width="1.5"/>
-          <circle cx="34" cy="30" r="3.5" fill="#FFD966" stroke="#B8860B" stroke-width="1.5"/>
-          <circle cx="42" cy="12" r="3.5" fill="#FFD966" stroke="#B8860B" stroke-width="1.5"/>
-          <circle cx="50" cy="30" r="3.5" fill="#FFD966" stroke="#B8860B" stroke-width="1.5"/>
-        </svg>`;
-    }
-
-    async function addMessage(user, text, avatarUrl=null, crown=false){
+    async function addMessage(user, text, avatarUrl=null){
       const div=document.createElement('div');
       div.className='message';
-      const safe = String(text).replace(/\\n/g,'<br>');
-      div.innerHTML = `
-        <div class="message-row">
-          <div style="position:relative;flex-shrink:0">
-            <img class="avatar" src="${avatarUrl||await avatarFor(user)}" alt="avatar">
-            ${crown ? `<div style="position:absolute;left:-14px;top:-14px;width:28px;height:28px;transform:rotate(-18deg);pointer-events:none">${crownSVG()}</div>` : ``}
-          </div>
-          <div class="message-content"><span class="username">${user}</span> ${safe}</div>
-        </div>`;
+      const safe = String(text).replace(/\\\\n/g,'<br>');
+      div.innerHTML=`<div class="message-row"><img class="avatar" src="${avatarUrl||await avatarFor(user)}" alt="avatar"><div class="message-content"><span class="username">${user}</span> ${safe}</div></div>`;
       const img = div.querySelector('.avatar');
       setAvatarFallback(img, user);
       $('messages').appendChild(div);
@@ -242,20 +200,6 @@
       $('messageInput').placeholder = (channel === 'stats' || channel === 'shop') ? '' : `Message #${channel}`;
       $('messageInput').disabled = false;
       $('sendBtn').style.display = 'inline-block';
-    }
-
-    function renderProfileWithCrown(profile) {
-      const avatarUrl = profile?.profile_picture || getFallbackAvatar(profile?.username || username);
-      const crownShown = profile?.has_crown && profile?.crown_equipped;
-      return `
-        <div class="profile-wrap">
-          <div class="pfp-crown-frame">
-            <img class="pfp-img" src="${avatarUrl}" alt="profile">
-            <div class="crown-badge" style="display:${crownShown ? 'block' : 'none'}">${crownSVG()}</div>
-          </div>
-          <div style="font-weight:bold">${profile?.username || username}</div>
-        </div>
-      `;
     }
 
     async function loadMessages(channel, token = ++loadToken){
@@ -282,15 +226,11 @@
       if (token !== loadToken || channel !== currentChannel) return;
 
       messagesEl.innerHTML = msgs.map(m => {
-        const safe = String(m.text).replace(/\\n/g, '<br>');
-        const crown = avatars[m.username]?.has_crown && avatars[m.username]?.crown_equipped;
+        const safe = String(m.text).replace(/\\\\n/g, '<br>');
         return `
       <div class="message">
         <div class="message-row">
-          <div style="position:relative;flex-shrink:0">
-            <img class="avatar" src="${avatars[m.username].avatar}" alt="avatar">
-            ${crown ? `<div style="position:absolute;left:-14px;top:-14px;width:28px;height:28px;transform:rotate(-18deg);pointer-events:none">${crownSVG()}</div>` : ``}
-          </div>
+          <img class="avatar" src="${avatars[m.username]}" alt="avatar">
           <div class="message-content">
             <span class="username">${m.username}</span> ${safe}
           </div>
@@ -311,10 +251,21 @@
       const messagesEl = $('messages');
       messagesEl.innerHTML = '';
 
+      const profile = await loadProfile(username);
+      const canCreate = profile?.is_admin === true || (!profile?.muted && !profile?.muted_until);
+
       const top = document.createElement('div');
       top.className = 'thread-topbar';
-      top.innerHTML = `<button id="newThreadBtn" class="thread-create-btn">Create Thread</button>`;
+      top.innerHTML = `
+        <button id="newThreadBtn" class="thread-create-btn" ${canCreate ? '' : 'disabled'}>Create Thread</button>
+      `;
       messagesEl.appendChild(top);
+
+      if (!canCreate) {
+        $('newThreadBtn').onmouseover = () => alert('You are muted and cannot create threads.');
+      } else {
+        $('newThreadBtn').onclick = () => openCreateThreadModal();
+      }
 
       const { data: threads } = await supabase
         .from('threads')
@@ -327,13 +278,34 @@
       (threads || []).forEach(thread => {
         const card = document.createElement('div');
         card.className = 'thread-card';
+        const isAdmin = profile?.is_admin === true;
+        const selfBtns = isAdmin
+          ? `<button id="deleteThreadBtn_${thread.id}" class="thread-delete-btn" style="margin-top:6px;">Delete Thread</button>`
+          : (thread.created_by === username
+            ? `<button id="deleteThreadBtn_${thread.id}" class="thread-delete-btn" style="margin-top:6px;">Delete Thread</button>`
+            : '');
+
         card.innerHTML = `
           <div class="thread-title">${thread.title}</div>
           <div class="thread-desc">${thread.description || ''}</div>
           <div class="thread-meta">Created by ${thread.created_by || 'Unknown'} • ${new Date(thread.created_at).toLocaleString()}</div>
+          ${selfBtns}
         `;
         card.onclick = () => openSuggestionThread(thread);
         messagesEl.appendChild(card);
+
+        const btn = card.querySelector(`#deleteThreadBtn_${thread.id}`);
+        if (btn) {
+          btn.onclick = async (e) => {
+            e.stopPropagation();
+            if (!confirm('Delete this thread and all its replies?')) return;
+            const { error } = await supabase.from('threads').delete().eq('id', thread.id);
+            if (error) return alert('Failed to delete thread.');
+            currentThreadId = null;
+            currentThread = null;
+            await loadSuggestions();
+          };
+        }
       });
 
       if (!threads || !threads.length) {
@@ -343,7 +315,6 @@
         messagesEl.appendChild(empty);
       }
 
-      $('newThreadBtn').onclick = openCreateThreadModal;
       $('messageInput').placeholder = 'Reply in suggestions only after opening a thread';
     }
 
@@ -355,7 +326,7 @@
 
       const top = document.createElement('div');
       top.className = 'thread-topbar';
-      top.innerHTML = `<button id="gamesChatBtn" class="thread-create-btn">Games Chat</button>`;
+      top.innerHTML = `<button id="gamesChatBtn" class="thread-create-btn">GamesChat</button>`;
       messagesEl.appendChild(top);
 
       const gamesGrid = document.createElement('div');
@@ -439,13 +410,24 @@
       const messagesEl = $('messages');
       messagesEl.innerHTML = '';
 
+      const profile = await loadProfile(username);
+      const canCreate = profile?.is_admin === true || (!profile?.muted && !profile?.muted_until);
+
       const top = document.createElement('div');
       top.className = 'thread-topbar';
       top.innerHTML = `
         <button id="backToGamingBtn" class="thread-back-btn">← Back to Games</button>
-        <button id="createGamingThreadBtn" class="thread-create-btn">Create Thread</button>
+        <button id="createGamingThreadBtn" class="thread-create-btn" ${canCreate ? '' : 'disabled'}>Create Thread</button>
       `;
       messagesEl.appendChild(top);
+
+      if (!canCreate) {
+        $('createGamingThreadBtn').onmouseover = () => alert('You are muted and cannot create threads.');
+      } else {
+        $('createGamingThreadBtn').onclick = () => openCreateThreadModal();
+      }
+
+      $('backToGamingBtn').onclick = () => loadGaming();
 
       const { data: threads } = await supabase
         .from('threads')
@@ -456,13 +438,32 @@
       (threads || []).forEach(thread => {
         const card = document.createElement('div');
         card.className = 'thread-card';
+        const isAdmin = profile?.is_admin === true;
+        const selfBtns = isAdmin
+          ? `<button id="deleteGamingThreadBtn_${thread.id}" class="thread-delete-btn" style="margin-top:6px;">Delete Thread</button>`
+          : (thread.created_by === username
+            ? `<button id="deleteGamingThreadBtn_${thread.id}" class="thread-delete-btn" style="margin-top:6px;">Delete Thread</button>`
+            : '');
+
         card.innerHTML = `
           <div class="thread-title">${thread.title}</div>
           <div class="thread-desc">${thread.description || ''}</div>
           <div class="thread-meta">Created by ${thread.created_by || 'Unknown'} • ${new Date(thread.created_at).toLocaleString()}</div>
+          ${selfBtns}
         `;
         card.onclick = () => openGamingThread(thread);
         messagesEl.appendChild(card);
+
+        const btn = card.querySelector(`#deleteGamingThreadBtn_${thread.id}`);
+        if (btn) {
+          btn.onclick = async (e) => {
+            e.stopPropagation();
+            if (!confirm('Delete this gaming thread and all replies?')) return;
+            const { error } = await supabase.from('threads').delete().eq('id', thread.id);
+            if (error) return alert('Failed to delete thread.');
+            await loadGamingThreads();
+          };
+        }
       });
 
       if (!threads || !threads.length) {
@@ -472,8 +473,6 @@
         messagesEl.appendChild(empty);
       }
 
-      $('backToGamingBtn').onclick = () => loadGaming();
-      $('createGamingThreadBtn').onclick = openCreateThreadModal;
       $('messageInput').placeholder = 'Discuss games in threads only';
     }
 
@@ -482,12 +481,21 @@
       currentThread = thread;
       $('messages').innerHTML = '';
 
+      const profile = await loadProfile(username);
+      const isAdmin = profile?.is_admin === true;
+
       const top = document.createElement('div');
       top.className = 'thread-topbar';
-      const isCreator = thread.created_by === username;
+      const isCreator = thread.created_by === username || isAdmin;
+
+      let deleteBtnHtml = '';
+      if (isAdmin || isCreator) {
+        deleteBtnHtml = `<button id="deleteGamingThreadBtn" class="thread-delete-btn">Delete Thread</button>`;
+      }
+
       top.innerHTML = `
         <button id="backToGamingThreadsBtn" class="thread-back-btn">← Back</button>
-        ${isCreator ? `<button id="deleteGamingThreadBtn" class="thread-delete-btn">Delete</button>` : ''}
+        ${deleteBtnHtml}
         <button id="gamingThreadTitleBtn" class="thread-create-btn" disabled>${thread.title}</button>
       `;
       $('messages').appendChild(top);
@@ -525,27 +533,12 @@
         div.className = 'message';
         div.innerHTML = `
           <div class="message-row">
-            <img class="avatar" src="${avatars[m.username].avatar}" alt="avatar">
+            <img class="avatar" src="${avatars[m.username]}" alt="avatar">
             <div class="message-content">
-              <span class="username">${m.username}</span> ${String(m.text).replace(/\\n/g, '<br>')}
+              <span class="username">${m.username}</span> ${String(m.text).replace(/\\\\n/g, '<br>') || '.'}
             </div>
           </div>`;
-        const img = div.querySelector('.avatar');
-        setAvatarFallback(img, m.username);
-        if (avatars[m.username].has_crown && avatars[m.username].crown_equipped) {
-          const row = div.querySelector('.message-row');
-          const crown = document.createElement('div');
-          crown.style.position = 'absolute';
-          crown.style.left = '-14px';
-          crown.style.top = '-14px';
-          crown.style.width = '28px';
-          crown.style.height = '28px';
-          crown.style.transform = 'rotate(-18deg)';
-          crown.style.pointerEvents = 'none';
-          crown.innerHTML = crownSVG();
-          row.style.position = 'relative';
-          row.insertBefore(crown, row.firstChild);
-        }
+        setAvatarFallback(div.querySelector('.avatar'), m.username);
         $('messages').appendChild(div);
       });
 
@@ -561,13 +554,21 @@
       currentThread = thread;
       $('messages').innerHTML = '';
 
+      const profile = await loadProfile(username);
+      const isAdmin = profile?.is_admin === true;
+
       const top = document.createElement('div');
       top.className = 'thread-topbar';
+      const isCreator = thread.created_by === username || isAdmin;
 
-      const isCreator = thread.created_by === username;
+      let deleteBtnHtml = '';
+      if (isAdmin || isCreator) {
+        deleteBtnHtml = `<button id="deleteThreadBtn" class="thread-delete-btn">Delete Thread</button>`;
+      }
+
       top.innerHTML = `
         <button id="backToSuggestionsBtn" class="thread-back-btn">Back</button>
-        ${isCreator ? `<button id="deleteThreadBtn" class="thread-delete-btn">Delete Thread</button>` : ''}
+        ${deleteBtnHtml}
         <button id="threadTitleBtn" class="thread-create-btn" disabled>${thread.title}</button>
       `;
       $('messages').appendChild(top);
@@ -607,27 +608,12 @@
         div.className = 'message';
         div.innerHTML = `
           <div class="message-row">
-            <img class="avatar" src="${avatars[m.username].avatar}" alt="avatar">
+            <img class="avatar" src="${avatars[m.username]}" alt="avatar">
             <div class="message-content">
-              <span class="username">${m.username}</span> ${String(m.text).replace(/\\n/g, '<br>')}
+              <span class="username">${m.username}</span> ${String(m.text).replace(/\\\\n/g, '<br>') || '.'}
             </div>
           </div>`;
-        const img = div.querySelector('.avatar');
-        setAvatarFallback(img, m.username);
-        if (avatars[m.username].has_crown && avatars[m.username].crown_equipped) {
-          const row = div.querySelector('.message-row');
-          const crown = document.createElement('div');
-          crown.style.position = 'absolute';
-          crown.style.left = '-14px';
-          crown.style.top = '-14px';
-          crown.style.width = '28px';
-          crown.style.height = '28px';
-          crown.style.transform = 'rotate(-18deg)';
-          crown.style.pointerEvents = 'none';
-          crown.innerHTML = crownSVG();
-          row.style.position = 'relative';
-          row.insertBefore(crown, row.firstChild);
-        }
+        setAvatarFallback(div.querySelector('.avatar'), m.username);
         $('messages').appendChild(div);
       });
 
@@ -642,24 +628,13 @@
       const text = $('messageInput').value.trim();
       if(!text) return;
       if(currentChannel==='stats' || currentChannel==='shop') return alert('You cannot send messages in this channel!');
+
       const profile = await loadProfile(username);
 
+      // Muted check (you can also add time‑based mute here via muted_until)
       if (!profile?.is_admin && (profile?.muted_until || profile?.muted === true)) {
-        return alert(`You are muted!\n\nReason: ${profile.mute_reason || 'No reason specified'}`);
+        return alert(`You are muted!\\n\\nReason: ${profile.mute_reason || 'No reason specified'}`);
       }
-
-      profile.xp = (profile.xp || 0) + 1;
-      const newLevel = Math.floor(profile.xp / 100) + 1;
-      if (newLevel > (profile.level || 1)) profile.level = newLevel;
-
-      const now = Date.now();
-      const lastCoinTime = profile.last_coin_timestamp || 0;
-      if (now - lastCoinTime >= 120000) {
-        profile.coins = (profile.coins || 0) + 1;
-        profile.last_coin_timestamp = now;
-      }
-
-      await saveProfile(profile);
 
       if (currentChannel === 'gaming' && currentThreadId) {
         const message = {
@@ -672,6 +647,9 @@
 
         const { error } = await supabase.from('messages').insert(message);
         if (error) return alert('Message failed to send.');
+        profile.xp = (profile.xp || 0) + 1;
+        profile.coins = (profile.coins || 0) + 1;
+        await saveProfile(profile);
         $('messageInput').value = '';
         await openGamingThread(currentThread);
         return;
@@ -688,6 +666,9 @@
 
         const { error } = await supabase.from('messages').insert(message);
         if (error) return alert('Message failed to send.');
+        profile.xp = (profile.xp || 0) + 1;
+        profile.coins = (profile.coins || 0) + 1;
+        await saveProfile(profile);
         $('messageInput').value = '';
         await openSuggestionThread(currentThread);
         return;
@@ -712,10 +693,14 @@
       const { error } = await supabase.from('messages').insert(message);
       if (error) return alert('Message failed to send.');
 
+      profile.xp = (profile.xp || 0) + 1;
+      profile.coins = (profile.coins || 0) + 1;
+      await saveProfile(profile);
+
       $('messageInput').value='';
 
       const avatar = await avatarFor(username);
-      const safe = String(text).replace(/\\n/g, '<br>');
+      const safe = String(text).replace(/\\\\n/g, '<br>');
       const div = document.createElement('div');
       div.className = 'message';
       div.innerHTML = `
@@ -734,63 +719,12 @@
       const p = await loadProfile(username);
       if (token !== loadToken || currentChannel !== 'stats') return;
       $('messages').innerHTML='';
-      const crown = p.has_crown && p.crown_equipped;
-      await addMessage('System', `${renderProfileWithCrown(p)}<strong>Level:</strong> ${p.level}<br><strong>XP:</strong> ${p.xp}<br><strong>XP to next level:</strong> ${Math.max((p.level||1)*100-(p.xp||0),0)}<br><strong>Coins:</strong> ${p.coins}<br><strong>Admin:</strong> ${p.is_admin ? 'Yes' : 'No'}<br><strong>Crown:</strong> ${p.has_crown ? (p.crown_equipped ? 'Equipped' : 'Owned, not equipped') : 'Not owned'}`, await avatarFor(p.username), crown);
+      await addMessage('System', `${p.username}<br><strong>Level:</strong> ${p.level}<br><strong>XP:</strong> ${p.xp}<br><strong>XP to next level:</strong> ${Math.max((p.level||1)*100-(p.xp||0),0)}<br><strong>Coins:</strong> ${p.coins}<br><strong>Admin:</strong> ${p.is_admin ? 'Yes' : 'No'}`, await avatarFor(p.username));
     }
 
     async function loadShop(token = loadToken){
       if (token !== loadToken || currentChannel !== 'shop') return;
-      const p = await loadProfile(username);
-      const canBuy = (p.coins || 0) >= 5;
-      $('messages').innerHTML = `
-        <div class="shop-grid">
-          <div class="shop-card">
-            <h4>Crown</h4>
-            <p>Cost: 5 gold. Once bought, you can equip or unequip it for free. When equipped, it appears on your profile picture and on your messages.</p>
-            <button id="buyCrownBtn" class="shop-btn" ${p.has_crown ? 'disabled' : ''}>${p.has_crown ? 'Owned' : 'Buy (5 gold)'}</button>
-            <button id="toggleCrownBtn" class="shop-btn" ${p.has_crown ? '' : 'disabled'}>${p.crown_equipped ? 'Unequip Crown' : 'Equip Crown'}</button>
-            <div class="shop-small">Your gold: ${p.coins || 0}</div>
-          </div>
-          <div class="shop-card">
-            <h4>Shop Info</h4>
-            <p>More items can be added here later. The crown is now available and syncs with your profile.</p>
-          </div>
-        </div>
-      `;
-
-      $('buyCrownBtn').onclick = async () => {
-        const profile = await loadProfile(username);
-        if (profile.has_crown) return alert('You already own the crown.');
-        if ((profile.coins || 0) < 5) return alert('You need 5 gold to buy the crown!');
-        profile.coins = (profile.coins || 0) - 5;
-        profile.has_crown = true;
-        profile.crown_equipped = true;
-        await saveProfile(profile);
-        avatarCache.delete(username);
-        alert('You bought the crown!');
-        await loadShop();
-        await refreshProfileDisplays();
-      };
-
-      $('toggleCrownBtn').onclick = async () => {
-        const profile = await loadProfile(username);
-        if (!profile.has_crown) return;
-        profile.crown_equipped = !profile.crown_equipped;
-        await saveProfile(profile);
-        avatarCache.delete(username);
-        await loadShop();
-        await refreshProfileDisplays();
-      };
-    }
-
-    async function refreshProfileDisplays(){
-      if (currentChannel === 'stats') await loadStats();
-      if (currentChannel === 'shop') await loadShop();
-      if (currentChannel === 'general' || currentChannel === 'coding' || currentChannel === 'gaming' || currentChannel === 'suggestions') {
-        if (currentChannel === 'gaming' && currentThreadId && currentThread) await openGamingThread(currentThread);
-        else if (currentChannel === 'suggestions' && currentThreadId && currentThread) await openSuggestionThread(currentThread);
-        else await switchChannel(currentChannel);
-      }
+      $('messages').innerHTML = '<div class="message"><div style="text-align:center;color:#b9bbbe">Games are now in #gaming! Shop coming soon...</div></div>';
     }
 
     function openOverlay(innerHTML){
@@ -807,13 +741,6 @@
       const o = openOverlay(`
         <div style="padding:18px;color:#fff;overflow:auto;height:100%;box-sizing:border-box">
           <h3 style="margin-top:0">Edit Profile</h3>
-          <div class="profile-wrap">
-            <div class="pfp-crown-frame">
-              <img class="pfp-img" src="${profile.profile_picture || getFallbackAvatar(username)}" alt="profile">
-              <div class="crown-badge" style="display:${profile.has_crown && profile.crown_equipped ? 'block' : 'none'}">${crownSVG()}</div>
-            </div>
-            <div style="font-weight:bold">${profile.username || username}</div>
-          </div>
           <div class="modal-field">
             <label>Username</label>
             <input id="peUsername" type="text" value="${profile.username || username}">
@@ -878,6 +805,15 @@
       };
     }
 
+    function parseRGB(colorStr) {
+      if (!colorStr || !colorStr.includes('rgb')) return {r:255, g:255, b:255};
+      const match = colorStr.match(/rgb\\((\\d+),(\\d+),(\\d+)\\)/);
+      return { r: parseInt(match?.[1] || '255'), g: parseInt(match?.[2] || '255'), b: parseInt(match?.[3] || '255') };
+    }
+
+    function createPfpEditor(profile){ }
+    function openProfileEditorLegacy(){ }
+
     function openSnakeFullscreen(){ openOverlay(`<iframe src="https://frogdafish.github.io/Snek"></iframe>`); }
     function openSlopeFullscreen(){ openOverlay(`<iframe src="slope.html"></iframe>`); }
     function openBartFullscreen(){ openOverlay(`<iframe src="bartblast.html"></iframe>`); }
@@ -889,7 +825,7 @@
 
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('username, level, xp, coins, muted, muted_until, mute_reason, is_admin, has_crown, crown_equipped')
+        .select('username, level, xp, coins, muted, muted_until, mute_reason, is_admin')
         .order('username', { ascending: true });
 
       const o = openOverlay(`
@@ -907,8 +843,7 @@
           <div class="admin-user-info">
             <div class="admin-user-name">${p.username}</div>
             <div class="admin-user-stats">
-              Level ${p.level || 1} • XP ${p.xp || 0} • Coins ${p.coins || 0} • Admin ${p.is_admin ? 'Yes' : 'No'}<br>
-              Crown: ${p.has_crown ? (p.crown_equipped ? 'Equipped' : 'Owned, not equipped') : 'Not owned'}
+              Level ${p.level || 1} • XP ${p.xp || 0} • Coins ${p.coins || 0} • Admin ${p.is_admin ? 'Yes' : 'No'}
               ${p.muted || p.muted_until ? `<br>Muted: ${p.mute_reason || 'No reason'}` : ''}
             </div>
           </div>
@@ -928,7 +863,6 @@
         if (!Number.isFinite(amount)) return;
         const p = await loadProfile(target);
         p.xp = (p.xp || 0) + amount;
-        p.level = Math.floor((p.xp || 0) / 100) + 1;
         await saveProfile(p);
         await openAdminPanel();
       });
@@ -966,6 +900,11 @@
     }
 
     async function openCreateThreadModal(){
+      const profile = await loadProfile(username);
+      if (!profile?.is_admin && (profile?.muted_until || profile?.muted === true)) {
+        return alert(`You are muted!\\n\\nReason: ${profile.mute_reason || 'No reason specified'}`);
+      }
+
       const channelName = currentChannel === 'gaming' ? 'Gaming' : 'Suggestion';
       const o = openOverlay(`
         <div style="padding:18px;color:#fff">
@@ -988,7 +927,7 @@
       o.querySelector('#cancelThreadBtn').onclick = () => o.remove();
 
       o.querySelector('#createThreadBtn').onclick = async () => {
-        const title = o.querySelector('#threadTitle').value.trim().replace(/\s+/g, ' ');
+        const title = o.querySelector('#threadTitle').value.trim().replace(/\\s+/g, ' ');
         const description = o.querySelector('#threadDesc').value.trim();
 
         if (!title) return alert('Title is required.');
