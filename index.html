@@ -5,346 +5,85 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Discord</title>
   <style>
-    body{
-      margin:0;
-      font-family:Segoe UI,sans-serif;
-      background:#36393f;
-      color:#fff;
-      display:flex;
-      height:100vh;
-      overflow:hidden;
-    }
-    .sidebar{
-      width:240px;
-      background:#2f3136;
-      padding:15px;
-      display:flex;
-      flex-direction:column;
-      box-sizing:border-box;
-    }
-    .sidebar h3{
-      color:#8e9297;
-      font-size:12px;
-      margin:0 0 10px;
-      text-transform:uppercase;
-    }
-    .channel,.edit-profile,.admin-panel,button{
-      cursor:pointer;
-    }
-    .channel{
-      padding:6px 10px;
-      border-radius:4px;
-      color:#b9bbbe;
-      transition:.15s;
-      user-select:none;
-    }
-    .channel:hover{
-      background:#40444b;
-      color:#fff;
-    }
-    .edit-profile{
-      margin-top:8px;
-      background:#40444b;
-      text-align:center;
-      padding:8px;
-      border-radius:4px;
-      user-select:none;
-    }
-    .edit-profile:hover{
-      background:#5865f2;
-    }
-    .admin-panel{
-      margin-top:auto;
-      margin-bottom:8px;
-      background:#5865f2;
-      text-align:center;
-      padding:8px;
-      border-radius:4px;
-      user-select:none;
-      display:none;
-    }
-    .admin-panel:hover{
-      background:#4752c4;
-    }
-    .chat{
-      flex:1;
-      display:flex;
-      flex-direction:column;
-      min-width:0;
-    }
-    .header{
-      padding:15px;
-      background:#2f3136;
-      font-weight:bold;
-      border-bottom:1px solid #202225;
-    }
-    .messages{
-      flex:1;
-      padding:20px;
-      overflow-y:auto;
-      box-sizing:border-box;
-    }
-    .message{
-      margin-bottom:10px;
-    }
-    .message-row{
-      display:flex;
-      align-items:flex-start;
-      gap:8px;
-    }
-    .avatar{
-      width:32px;
-      height:32px;
-      border-radius:50%;
-      object-fit:cover;
-      background:#5865f2;
-      flex-shrink:0;
-      margin-top:2px;
-      border:1px solid rgba(255,255,255,.15);
-    }
-    .message-content{
-      line-height:1.35;
-      word-break:break-word;
-      white-space:normal;
-    }
-    .username{
-      font-weight:bold;
-      color:#7289da;
-    }
-    .input-area{
-      padding:10px 15px;
-      background:#40444b;
-      display:flex;
-      gap:10px;
-    }
-    input{
-      flex:1;
-      padding:10px;
-      border-radius:4px;
-      border:none;
-      background:#303339;
-      color:#fff;
-      outline:none;
-    }
-    button{
-      padding:10px 16px;
-      border-radius:4px;
-      border:none;
-      background:#7289da;
-      color:#fff;
-    }
-    .typing-indicator{
-      font-size:12px;
-      color:#b9bbbe;
-      margin:0 0 8px 15px;
-      font-style:italic;
-    }
-    .shop-btn{
-      background:#43b581;
-      margin:5px 0;
-      padding:8px 16px;
-    }
-    .overlay{
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,.9);
-      z-index:9999;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
-    .overlay-box{
-      width:min(980px,96vw);
-      height:min(680px,92vh);
-      background:#1e1f22;
-      border-radius:12px;
-      position:relative;
-      overflow:hidden;
-      box-shadow:0 10px 30px rgba(0,0,0,.35);
-    }
-    .overlay-box iframe{
-      position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
-      border:none;
-    }
-    .close-btn{
-      position:absolute;
-      top:10px;
-      right:10px;
-      z-index:10001;
-      width:40px;
-      height:40px;
-      border-radius:50%;
-      border:none;
-      background:#7289da;
-      color:#fff;
-      font-size:20px;
-    }
-    .admin-list{
-      padding:18px;
-      color:#fff;
-      overflow:auto;
-      height:100%;
-      box-sizing:border-box;
-    }
-    .admin-user{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      padding:12px;
-      margin-bottom:10px;
-      background:#2f3136;
-      border:1px solid #202225;
-      border-radius:8px;
-    }
-    .admin-user-info{
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-    }
-    .admin-user-name{
-      font-weight:bold;
-      color:#fff;
-    }
-    .admin-user-stats{
-      font-size:13px;
-      color:#b9bbbe;
-    }
-    .admin-user-actions{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-    .admin-mute-btn{
-      background:#ff6b6b;
-    }
-    .admin-unmute-btn{
-      background:#43b581;
-    }
-    .admin-action-btn{
-      background:#5865f2;
-    }
-    .thread-card{
-      padding:12px;
-      background:#2f3136;
-      border:1px solid #202225;
-      border-radius:8px;
-      cursor:pointer;
-      margin-bottom:10px;
-    }
-    .thread-card:hover{
-      background:#35393f;
-    }
-    .thread-title{
-      font-weight:bold;
-      color:#fff;
-    }
-    .thread-desc{
-      font-size:13px;
-      color:#b9bbbe;
-      margin-top:4px;
-    }
-    .thread-meta{
-      font-size:12px;
-      color:#8e9297;
-      margin-top:6px;
-    }
-    .thread-topbar{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      margin-bottom:14px;
-      flex-wrap:wrap;
-    }
-    .thread-create-btn{
-      background:#43b581;
-    }
-    .thread-back-btn{
-      background:#5865f2;
-    }
-    .thread-delete-btn{
-      background:#ff6b6b;
-    }
-    .modal-field{
-      margin:10px 0;
-    }
-    .modal-field label{
-      display:block;
-      font-size:12px;
-      color:#b9bbbe;
-      margin-bottom:6px;
-    }
-    .modal-field input,.modal-field textarea{
-      width:100%;
-      box-sizing:border-box;
-    }
-    .modal-field textarea{
-      padding:10px;
-      border-radius:4px;
-      border:none;
-      background:#303339;
-      color:#fff;
-      outline:none;
-      resize:vertical;
-      height:120px;
-    }
-    .game-grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-      gap:15px;
-      margin-top:10px;
-    }
-    .game-card{
-      padding:15px;
-      background:#2f3136;
-      border:1px solid #202225;
-      border-radius:8px;
-      text-align:center;
-    }
-    .game-card h4{
-      margin:0 0 10px;
-      font-size:16px;
-      color:#fff;
-    }
-    .game-card button{
-      width:100%;
-      margin:5px 0;
-    }
-    .crown-img{
-      width:64px;
-      height:64px;
-      object-fit:contain;
-      display:block;
-      margin:0 auto 12px;
-    }
+    body{margin:0;font-family:Segoe UI,sans-serif;background:#36393f;color:#fff;display:flex;height:100vh;overflow:hidden}
+    .sidebar{width:240px;background:#2f3136;padding:15px;display:flex;flex-direction:column;box-sizing:border-box}
+    .sidebar h3{color:#8e9297;font-size:12px;margin:0 0 10px;text-transform:uppercase}
+    .channel,.edit-profile,.admin-panel,button{cursor:pointer}
+    .channel{padding:6px 10px;border-radius:4px;color:#b9bbbe;transition:.15s;user-select:none}
+    .channel:hover{background:#40444b;color:#fff}
+    .edit-profile{margin-top:8px;background:#40444b;text-align:center;padding:8px;border-radius:4px;user-select:none}
+    .edit-profile:hover{background:#5865f2}
+    .admin-panel{margin-top:auto;margin-bottom:8px;background:#5865f2;text-align:center;padding:8px;border-radius:4px;user-select:none;display:none}
+    .admin-panel:hover{background:#4752c4}
+    .chat{flex:1;display:flex;flex-direction:column;min-width:0}
+    .header{padding:15px;background:#2f3136;font-weight:bold;border-bottom:1px solid #202225}
+    .messages{flex:1;padding:20px;overflow-y:auto;box-sizing:border-box}
+    .message{margin-bottom:10px}
+    .message-row{display:flex;align-items:flex-start;gap:8px}
+    .avatar-container { position: relative; width: 32px; height: 32px; flex-shrink: 0; margin-top: 2px; }
+    .avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;background:#5865f2;flex-shrink:0;margin-top:2px;border:1px solid rgba(255,255,255,.15)}
+    .crown-overlay { position: absolute; top: -14px; left: -12px; width: 28px; height: 28px; pointer-events: none; z-index: 10; transform: rotate(-15deg); }
+    .message-content{line-height:1.35;word-break:break-word;white-space:normal}
+    .username{font-weight:bold;color:#7289da}
+    .input-area{padding:10px 15px;background:#40444b;display:flex;gap:10px}
+    input{flex:1;padding:10px;border-radius:4px;border:none;background:#303339;color:#fff;outline:none}
+    button{padding:10px 16px;border-radius:4px;border:none;background:#7289da;color:#fff}
+    .typing-indicator{font-size:12px;color:#b9bbbe;margin:0 0 8px 15px;font-style:italic}
+    .shop-btn{background:#43b581;margin:5px 0;padding:8px 16px}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center}
+    .overlay-box{width:min(980px,96vw);height:min(680px,92vh);background:#1e1f22;border-radius:12px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .overlay-box iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+    .close-btn{position:absolute;top:10px;right:10px;z-index:10001;width:40px;height:40px;border-radius:50%;border:none;background:#7289da;color:#fff;font-size:20px}
+    .admin-list{padding:18px;color:#fff;overflow:auto;height:100%;box-sizing:border-box}
+    .admin-user{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;margin-bottom:10px;background:#2f3136;border:1px solid #202225;border-radius:8px}
+    .admin-user-info{display:flex;flex-direction:column;gap:4px}
+    .admin-user-name{font-weight:bold;color:#fff}
+    .admin-user-stats{font-size:13px;color:#b9bbbe}
+    .admin-user-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .admin-mute-btn{background:#ff6b6b}
+    .admin-unmute-btn{background:#43b581}
+    .admin-action-btn{background:#5865f2}
+    .thread-card{padding:12px;background:#2f3136;border:1px solid #202225;border-radius:8px;cursor:pointer;margin-bottom:10px}
+    .thread-card:hover{background:#35393f}
+    .thread-title{font-weight:bold;color:#fff}
+    .thread-desc{font-size:13px;color:#b9bbbe;margin-top:4px}
+    .thread-meta{font-size:12px;color:#8e9297;margin-top:6px}
+    .thread-topbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+    .thread-create-btn{background:#43b581}
+    .thread-back-btn{background:#5865f2}
+    .thread-delete-btn{background:#ff6b6b}
+    .modal-field{margin:10px 0}
+    .modal-field label{display:block;font-size:12px;color:#b9bbbe;margin-bottom:6px}
+    .modal-field input,.modal-field textarea{width:100%;box-sizing:border-box}
+    .modal-field textarea{padding:10px;border-radius:4px;border:none;background:#303339;color:#fff;outline:none;resize:vertical;height:120px}
+    .game-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:15px;margin-top:10px}
+    .game-card{padding:15px;background:#2f3136;border:1px solid #202225;border-radius:8px;text-align:center}
+    .game-card h4{margin:0 0 10px;font-size:16px;color:#fff}
+    .game-card button{width:100%;margin:5px 0}
   </style>
 </head>
 <body>
   <div class="sidebar">
     <h3>TEXT CHANNELS</h3>
-    <div class="channel" data-channel="general">general</div>
-    <div class="channel" data-channel="gaming">gaming</div>
-    <div class="channel" data-channel="coding">coding</div>
-    <div class="channel" data-channel="suggestions">suggestions</div>
-    <div class="channel" data-channel="adaminchat" id="adminChatChannel" style="display:none;">adaminchat</div>
-    <div class="channel" data-channel="stats">stats</div>
-    <div class="channel" data-channel="shop">shop</div>
-
+    <div class="channel" data-channel="general"># general</div>
+    <div class="channel" data-channel="gaming"># gaming</div>
+    <div class="channel" data-channel="coding"># coding</div>
+    <div class="channel" data-channel="suggestions"># suggestions</div>
+    <div class="channel" data-channel="adaminchat" id="adminChatChannel" style="display:none;"># ad da min chat</div>
+    <div class="channel" data-channel="stats"># stats</div>
+    <div class="channel" data-channel="shop"># shop</div>
     <div class="admin-panel" id="adminPanelBtn">Admin Panel</div>
     <div class="edit-profile" id="editProfileBtn">Edit Profile</div>
   </div>
 
   <div class="chat">
-    <div class="header" id="channelName">general</div>
+    <div class="header" id="channelName"># general</div>
     <div class="messages" id="messages"></div>
-    <div class="typing-indicator" id="typingIndicator"></div>
     <div class="input-area">
-      <input id="messageInput" placeholder="Message general" />
+      <input id="messageInput" placeholder="Message #general" />
       <button id="sendBtn">Send</button>
     </div>
+    <div id="typingIndicator" class="typing-indicator"></div>
   </div>
 
   <script type="module">
@@ -352,14 +91,14 @@
 
     const supabase = createClient(
       "https://adrusttuicogkeplrcac.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkcnVzdHR1aWNvZ2tlcGxyY2FjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5NDQxMjUsImV4cCI6MjA4NjUyMDEyNX0.XnfYHjY0lR5JMBX855xsOtiC44oOWbRtZbGmSo8ZB0"
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkcnVzdHR1aWNvZ2tlcGxyY2FjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5NDQxMjUsImV4cCI6MjA4NjUyMDEyNX0.XnfYHjY0lR5JMBX855xsOtiC44oOW_bRtZbGmSo8ZB0"
     );
 
-    const id = (x) => document.getElementById(x);
-    let currentChannel = "general";
+    const $ = id => document.getElementById(id);
+    let currentChannel = 'general';
     let currentThreadId = null;
     let currentThread = null;
-    let username = localStorage.getItem("username");
+    let username = localStorage.getItem('username') || '';
     let loadToken = 0;
     const avatarCache = new Map();
 
@@ -367,658 +106,718 @@
       xp: 0,
       level: 1,
       coins: 0,
-      profilepicture: null,
-      muteduntil: null,
-      mutereason: null,
+      profile_picture: null,
+      muted_until: null,
+      mute_reason: null,
       muted: false,
-      ownedsnake: false,
-      ownedslope: false,
-      ownedbartblast: false,
-      ownedsls: true,
-      isadmin: false,
-      pfpbrushcolor: "rgb(255,255,255)",
-      pfpbrushwidth: 10,
-      pfpbgcolor: "#40444b"
+      owned_snake: false,
+      owned_slope: false,
+      owned_bartblast: false,
+      owned_sls: true,
+      is_admin: false,
+      has_crown: false,
+      crown_equipped: false,
+      pfp_brush_color: 'rgb(255,255,255)',
+      pfp_brush_width: 10,
+      pfp_bg_color: '#40444b'
     };
 
     if (!username) {
-      while (!username) username = prompt("Enter username");
-      localStorage.setItem("username", username);
-      await supabase.from("profiles").upsert({ username, ...defaultProfile });
+      while (!username) username = prompt('Enter username:');
+      localStorage.setItem('username', username);
+      await supabase.from('profiles').upsert({ username, ...defaultProfile });
     }
 
-    const getFallbackAvatar = (n) =>
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=7289da&color=fff&rounded=true&size=64`;
-
-    const setAvatarFallback = (img, n) => {
-      img.onerror = null;
-      img.src = getFallbackAvatar(n);
-    };
+    const getFallbackAvatar = n => `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=7289da&color=fff&rounded=true&size=64`;
+    const setAvatarFallback = (img, n) => img.onerror = () => { img.onerror = null; img.src = getFallbackAvatar(n); };
 
     async function loadProfile(name) {
-      const { data } = await supabase.from("profiles").select("*").eq("username", name).single();
-      return data;
+      const { data } = await supabase.from('profiles').select('*').eq('username', name).single();
+      return data || {};
     }
 
     async function saveProfile(profile) {
-      await supabase.from("profiles").upsert(profile);
+      await supabase.from('profiles').upsert(profile);
     }
 
-    async function ensureProfile() {
-      await supabase.from("profiles").upsert({ username, ...defaultProfile });
+    async function ensureProfile(){
+      await supabase.from('profiles').upsert({ username, ...defaultProfile });
     }
 
     async function refreshAdminVisibility() {
       const profile = await loadProfile(username);
-      const btn = id("adminChatChannel");
+      const btn = $('adminChatChannel');
       if (!btn) return;
-      btn.style.display = profile?.isadmin === true ? "block" : "none";
+      btn.style.display = profile?.is_admin === true ? 'block' : 'none';
     }
 
     async function refreshAdminButton() {
       const profile = await loadProfile(username);
-      const btn = id("adminPanelBtn");
+      const btn = $('adminPanelBtn');
       if (!btn) return;
-      btn.style.display = profile?.isadmin === true ? "block" : "none";
+      btn.style.display = profile?.is_admin === true ? 'block' : 'none';
     }
 
     async function getAvatars(usernames) {
       const unique = [...new Set(usernames.filter(Boolean))];
-      const missing = unique.filter((name) => !avatarCache.has(name));
+      const missing = unique.filter(name => !avatarCache.has(name));
+
       if (missing.length) {
-        const { data } = await supabase.from("profiles").select("username, profilepicture").in("username", missing);
+        const { data } = await supabase
+          .from('profiles')
+          .select('username, profile_picture')
+          .in('username', missing);
+
         const rows = data || [];
         for (const name of missing) {
-          const profile = rows.find((p) => p.username === name);
-          avatarCache.set(name, profile?.profilepicture || getFallbackAvatar(name));
+          const profile = rows.find(p => p.username === name);
+          avatarCache.set(name, profile?.profile_picture || getFallbackAvatar(name));
         }
       }
+
       const out = {};
       for (const name of unique) out[name] = avatarCache.get(name) || getFallbackAvatar(name);
       return out;
     }
 
-    async function avatarFor(name) {
+    async function getAvatarAndCrown(name) {
+      const p = await loadProfile(name);
+      const avatar = p.profile_picture || getFallbackAvatar(name);
+      const showCrown = p.has_crown && p.crown_equipped;
+      return { avatar, showCrown };
+    }
+
+    async function avatarFor(name){
       if (avatarCache.has(name)) return avatarCache.get(name);
       const profile = await loadProfile(name);
-      const avatar = profile?.profilepicture || getFallbackAvatar(name);
+      const avatar = profile?.profile_picture || getFallbackAvatar(name);
       avatarCache.set(name, avatar);
       return avatar;
     }
 
-    async function addMessage(user, text, avatarUrl = null) {
-      const div = document.createElement("div");
-      div.className = "message";
-      const safe = String(text).replace(/\n/g, "<br>");
-      div.innerHTML = `
-        <div class="message-row">
-          <img class="avatar" src="${avatarUrl || await avatarFor(user)}" alt="avatar">
-          <div class="message-content">
-            <span class="username">${user}</span> ${safe}
-          </div>
-        </div>
-      `;
-      const img = div.querySelector("img.avatar");
+    async function addMessage(user, text, avatarUrl=null){
+      const div=document.createElement('div');
+      div.className='message';
+      const { showCrown } = await getAvatarAndCrown(user);
+      const crown = showCrown ? `<img src="crown.png" class="crown-overlay" />` : '';
+      const safe = String(text).replace(/\\\\n/g,'<br>');
+      div.innerHTML=`<div class="message-row"><div class="avatar-container"><img class="avatar" src="${avatarUrl||await avatarFor(user)}" alt="avatar">${crown}</div><div class="message-content"><span class="username">${user}</span> ${safe}</div></div>`;
+      const img = div.querySelector('.avatar');
       setAvatarFallback(img, user);
-      id("messages").appendChild(div);
-      id("messages").scrollTop = id("messages").scrollHeight;
+      $('messages').appendChild(div);
+      $('messages').scrollTop = $('messages').scrollHeight;
     }
 
-    function renderChannelHeader(channel) {
-      id("channelName").textContent =
-        channel === "stats" ? "stats" :
-        channel === "shop" ? "shop" :
-        channel === "suggestions" ? "suggestions" :
-        channel === "gaming" ? "gaming" :
-        channel === "adaminchat" ? "adaminchat" : channel;
-
-      id("messageInput").placeholder = channel === "stats" || channel === "shop"
-        ? `Message ${channel}`
-        : `Message ${channel}`;
-
-      id("messageInput").disabled = false;
-      id("sendBtn").style.display = "inline-block";
+    function renderChannelHeader(channel){
+      $('channelName').textContent = channel === 'stats' ? '# stats' : channel === 'shop' ? '# shop' : channel === 'suggestions' ? '# suggestions' : channel === 'gaming' ? '# gaming' : channel === 'adaminchat' ? '# ad da min chat' : `# ${channel}`;
+      $('messageInput').placeholder = (channel === 'stats' || channel === 'shop') ? '' : `Message #${channel}`;
+      $('messageInput').disabled = false;
+      $('sendBtn').style.display = 'inline-block';
     }
 
-    async function loadMessages(channel, token) {
-      const messagesEl = id("messages");
-      messagesEl.innerHTML = "";
+    async function loadMessages(channel, token = ++loadToken){
+      const messagesEl = $('messages');
+      messagesEl.innerHTML = '';
 
       const { data: msgs } = await supabase
-        .from("messages")
-        .select("channel,username,text,createdat")
-        .eq("channel", channel)
-        .is("threadid", null)
-        .order("createdat", { ascending: true })
-        .limit(50);
+        .from('messages')
+        .select('channel,username,text,created_at')
+        .eq('channel', channel)
+        .is('thread_id', null)
+        .order('created_at', { ascending: true });
 
       if (token !== loadToken || channel !== currentChannel) return;
 
       if (!msgs || !msgs.length) {
-        await addMessage("System", "No messages yet.");
+        await addMessage('System', 'No messages yet.');
         return;
       }
 
-      const avatars = await getAvatars(msgs.map((m) => m.username));
-      if (token !== loadToken || channel !== currentChannel) return;
+      const usernames = [...new Set(msgs.map(m => m.username).filter(Boolean))];
+      const avatars = await getAvatars(usernames);
 
-      messagesEl.innerHTML = msgs.map((m) => {
-        const safe = String(m.text).replace(/\n/g, "<br>");
+      messagesEl.innerHTML = msgs.map(m => {
+        const avatar = avatars[m.username] || getFallbackAvatar(m.username);
+        const safe = String(m.text).replace(/\n/g, '<br>');
         return `
           <div class="message">
             <div class="message-row">
-              <img class="avatar" src="${avatars[m.username]}" alt="avatar">
+              <div class="avatar-container">
+                <img class="avatar" src="${avatar}" alt="avatar">
+              </div>
               <div class="message-content">
                 <span class="username">${m.username}</span> ${safe}
               </div>
             </div>
-          </div>
-        `;
-      }).join("");
+          </div>`;
+      }).join('');
 
-      messagesEl.querySelectorAll("img.avatar").forEach((img, i) => setAvatarFallback(img, msgs[i].username));
+      messagesEl.querySelectorAll('.avatar').forEach((img, i) => setAvatarFallback(img, msgs[i].username));
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
-
-    async function loadSuggestions(token) {
+async function loadSuggestions(token = ++loadToken){
       currentThreadId = null;
       currentThread = null;
-      const messagesEl = id("messages");
-      messagesEl.innerHTML = "";
+      const messagesEl = $('messages');
+      messagesEl.innerHTML = '';
 
       const profile = await loadProfile(username);
-      const canCreate = profile?.isadmin === true || (!profile?.muted && !profile?.muteduntil);
+      const canCreate = profile?.is_admin === true || (!profile?.muted && !profile?.muted_until);
 
-      const top = document.createElement("div");
-      top.className = "thread-topbar";
-      top.innerHTML = `<button id="newThreadBtn" class="thread-create-btn" ${canCreate ? "" : "disabled"}>Create Thread</button>`;
+      const top = document.createElement('div');
+      top.className = 'thread-topbar';
+      top.innerHTML = `
+        <button id="newThreadBtn" class="thread-create-btn" ${canCreate ? '' : 'disabled'}>Create Thread</button>
+      `;
       messagesEl.appendChild(top);
 
       if (!canCreate) {
-        newThreadBtn.onmouseover = () => alert("You are muted and cannot create threads.");
+        $('newThreadBtn').onmouseover = () => alert('You are muted and cannot create threads.');
       } else {
-        newThreadBtn.onclick = openCreateThreadModal;
+        $('newThreadBtn').onclick = () => openCreateThreadModal();
       }
 
       const { data: threads } = await supabase
-        .from("threads")
-        .select("id,title,description,createdby,createdat")
-        .eq("channel", "suggestions")
-        .order("createdat", { ascending: false });
+        .from('threads')
+        .select('id,title,description,created_by,created_at')
+        .eq('channel', 'suggestions')
+        .order('created_at', { ascending: false });
 
-      if (token !== loadToken || currentChannel !== "suggestions") return;
+      if (token !== loadToken || currentChannel !== 'suggestions') return;
 
-      threads?.forEach((thread) => {
-        const card = document.createElement("div");
-        card.className = "thread-card";
-
-        const isAdmin = profile?.isadmin === true;
-        const selfBtns = isAdmin || thread.createdby === username
-          ? `<button id="deleteThreadBtn${thread.id}" class="thread-delete-btn" style="margin-top:6px;">Delete Thread</button>`
-          : "";
+      (threads || []).forEach(thread => {
+        const card = document.createElement('div');
+        card.className = 'thread-card';
+        const isAdmin = profile?.is_admin === true;
+        const selfBtns = isAdmin
+          ? `<button id="deleteThreadBtn_${thread.id}" class="thread-delete-btn" style="margin-top:6px;">Delete Thread</button>`
+          : (thread.created_by === username
+            ? `<button id="deleteThreadBtn_${thread.id}" class="thread-delete-btn" style="margin-top:6px;">Delete Thread</button>`
+            : '');
 
         card.innerHTML = `
           <div class="thread-title">${thread.title}</div>
-          <div class="thread-desc">${thread.description || ""}</div>
-          <div class="thread-meta">Created by ${thread.createdby || "Unknown"} • ${new Date(thread.createdat).toLocaleString()}</div>
+          <div class="thread-desc">${thread.description || ''}</div>
+          <div class="thread-meta">Created by ${thread.created_by || 'Unknown'} • ${new Date(thread.created_at).toLocaleString()}</div>
           ${selfBtns}
         `;
-
         card.onclick = () => openSuggestionThread(thread);
         messagesEl.appendChild(card);
 
-        const btn = card.querySelector(`#deleteThreadBtn${thread.id}`);
+        const btn = card.querySelector(`#deleteThreadBtn_${thread.id}`);
         if (btn) {
           btn.onclick = async (e) => {
             e.stopPropagation();
-            if (!confirm("Delete this thread and all its replies?")) return;
-            const { error } = await supabase.from("threads").delete().eq("id", thread.id);
-            if (error) return alert("Failed to delete thread.");
+            if (!confirm('Delete this thread and all its replies?')) return;
+            const { error } = await supabase.from('threads').delete().eq('id', thread.id);
+            if (error) return alert('Failed to delete thread.');
             currentThreadId = null;
             currentThread = null;
-            await loadSuggestions(loadToken);
+            await loadSuggestions();
           };
         }
       });
 
       if (!threads || !threads.length) {
-        const empty = document.createElement("div");
-        empty.className = "message";
-        empty.textContent = "No suggestion threads yet.";
+        const empty = document.createElement('div');
+        empty.className = 'message';
+        empty.textContent = 'No suggestion threads yet.';
         messagesEl.appendChild(empty);
       }
 
-      id("messageInput").placeholder = "Reply in suggestions only after opening a thread...";
+      $('messageInput').placeholder = 'Reply in suggestions only after opening a thread';
     }
 
-    async function loadGaming(token) {
+    async function loadGaming(token = ++loadToken){
       currentThreadId = null;
       currentThread = null;
-      const messagesEl = id("messages");
-      messagesEl.innerHTML = "";
+      const messagesEl = $('messages');
+      messagesEl.innerHTML = '';
 
-      const top = document.createElement("div");
-      top.className = "thread-topbar";
-      top.innerHTML = `<button id="gamesChatBtn" class="thread-create-btn">Games Chat</button>`;
+      const top = document.createElement('div');
+      top.className = 'thread-topbar';
+      top.innerHTML = `<button id="gamesChatBtn" class="thread-create-btn">GamesChat</button>`;
       messagesEl.appendChild(top);
 
-      const gamesGrid = document.createElement("div");
-      gamesGrid.className = "game-grid";
+      const gamesGrid = document.createElement('div');
+      gamesGrid.className = 'game-grid';
       gamesGrid.innerHTML = `
-        <div class="game-card"><h4>Snake Game</h4><button class="shop-btn" id="playSnakeBtn">Play Fullscreen</button></div>
-        <div class="game-card"><h4>Slope Game</h4><button class="shop-btn" id="playSlopeBtn">Play Fullscreen</button></div>
-        <div class="game-card"><h4>Bart Blast</h4><button class="shop-btn" id="playBartBtn">Play Fullscreen</button></div>
-        <div class="game-card"><h4>Super Liquid Soccer</h4><button class="shop-btn" id="playSlsBtn">Play Free</button></div>
+        <div class="game-card">
+          <h4>Snake Game</h4>
+          <button class="shop-btn" id="playSnakeBtn">Play (Fullscreen)</button>
+        </div>
+        <div class="game-card">
+          <h4>Slope Game</h4>
+          <button class="shop-btn" id="playSlopeBtn">Play (Fullscreen)</button>
+        </div>
+        <div class="game-card">
+          <h4>Bart Blast</h4>
+          <button class="shop-btn" id="playBartBtn">Play (Fullscreen)</button>
+        </div>
+        <div class="game-card">
+          <h4>Super Liquid Soccer</h4>
+          <button class="shop-btn" id="playSlsBtn">Play (Free)</button>
+        </div>
       `;
       messagesEl.appendChild(gamesGrid);
 
       const p = await loadProfile(username);
 
-      if (p.ownedsnake) {
-        playSnakeBtn.onclick = openSnakeFullscreen;
+      if(p.owned_snake) {
+        $('playSnakeBtn').onclick = openSnakeFullscreen;
       } else {
-        playSnakeBtn.textContent = "Buy 25 coins";
-        playSnakeBtn.onclick = async () => {
+        $('playSnakeBtn').textContent = 'Buy (25 coins)';
+        $('playSnakeBtn').onclick = async () => {
           const p2 = await loadProfile(username);
-          if ((p2.coins || 0) < 25) return alert("You need 25 coins to buy Snake!");
+          if((p2.coins||0) < 25) return alert('You need 25 coins to buy Snake!');
           p2.coins -= 25;
-          p2.ownedsnake = true;
+          p2.owned_snake = true;
           await saveProfile(p2);
-          alert("You bought Snake!");
-          await loadGaming(loadToken);
+          alert('You bought Snake!');
+          await loadGaming();
         };
       }
 
-      if (p.ownedslope) {
-        playSlopeBtn.onclick = openSlopeFullscreen;
+      if(p.owned_slope) {
+        $('playSlopeBtn').onclick = openSlopeFullscreen;
       } else {
-        playSlopeBtn.textContent = "Buy 50 coins";
-        playSlopeBtn.onclick = async () => {
+        $('playSlopeBtn').textContent = 'Buy (50 coins)';
+        $('playSlopeBtn').onclick = async () => {
           const p2 = await loadProfile(username);
-          if ((p2.coins || 0) < 50) return alert("You need 50 coins to buy Slope!");
+          if((p2.coins||0) < 50) return alert('You need 50 coins to buy Slope!');
           p2.coins -= 50;
-          p2.ownedslope = true;
+          p2.owned_slope = true;
           await saveProfile(p2);
-          alert("You bought Slope!");
-          await loadGaming(loadToken);
+          alert('You bought Slope!');
+          await loadGaming();
         };
       }
 
-      if (p.ownedbartblast) {
-        playBartBtn.onclick = openBartFullscreen;
+      if(p.owned_bartblast) {
+        $('playBartBtn').onclick = openBartFullscreen;
       } else {
-        playBartBtn.textContent = "Buy 75 coins";
-        playBartBtn.onclick = async () => {
+        $('playBartBtn').textContent = 'Buy (75 coins)';
+        $('playBartBtn').onclick = async () => {
           const p2 = await loadProfile(username);
-          if ((p2.coins || 0) < 75) return alert("You need 75 coins to buy Bart Blast!");
+          if((p2.coins||0) < 75) return alert('You need 75 coins to buy Bart Blast!');
           p2.coins -= 75;
-          p2.ownedbartblast = true;
+          p2.owned_bartblast = true;
           await saveProfile(p2);
-          alert("You bought Bart Blast!");
-          await loadGaming(loadToken);
+          alert('You bought Bart Blast!');
+          await loadGaming();
         };
       }
 
-      playSlsBtn.onclick = openSuperLiquidSoccerFullscreen;
-      gamesChatBtn.onclick = loadGamingThreads;
+      $('playSlsBtn').onclick = openSuperLiquidSoccerFullscreen;
+      $('gamesChatBtn').onclick = () => loadGamingThreads();
 
-      if (token !== loadToken || currentChannel !== "gaming") return;
+      if (token !== loadToken || currentChannel !== 'gaming') return;
     }
 
-    async function loadGamingThreads() {
+    async function loadGamingThreads(){
       currentThreadId = null;
       currentThread = null;
-      const messagesEl = id("messages");
-      messagesEl.innerHTML = "";
+      const messagesEl = $('messages');
+      messagesEl.innerHTML = '';
 
       const profile = await loadProfile(username);
-      const canCreate = profile?.isadmin === true || (!profile?.muted && !profile?.muteduntil);
+      const canCreate = profile?.is_admin === true || (!profile?.muted && !profile?.muted_until);
 
-      const top = document.createElement("div");
-      top.className = "thread-topbar";
+      const top = document.createElement('div');
+      top.className = 'thread-topbar';
       top.innerHTML = `
-        <button id="backToGamingBtn" class="thread-back-btn">Back to Games</button>
-        <button id="createGamingThreadBtn" class="thread-create-btn" ${canCreate ? "" : "disabled"}>Create Thread</button>
+        <button id="backToGamingBtn" class="thread-back-btn">← Back to Games</button>
+        <button id="createGamingThreadBtn" class="thread-create-btn" ${canCreate ? '' : 'disabled'}>Create Thread</button>
       `;
       messagesEl.appendChild(top);
 
       if (!canCreate) {
-        createGamingThreadBtn.onmouseover = () => alert("You are muted and cannot create threads.");
+        $('createGamingThreadBtn').onmouseover = () => alert('You are muted and cannot create threads.');
       } else {
-        createGamingThreadBtn.onclick = openCreateThreadModal;
+        $('createGamingThreadBtn').onclick = () => openCreateThreadModal();
       }
 
-      backToGamingBtn.onclick = loadGaming;
+      $('backToGamingBtn').onclick = () => loadGaming();
 
       const { data: threads } = await supabase
-        .from("threads")
-        .select("id,title,description,createdby,createdat")
-        .eq("channel", "gaming")
-        .order("createdat", { ascending: false });
+        .from('threads')
+        .select('id,title,description,created_by,created_at')
+        .eq('channel', 'gaming')
+        .order('created_at', { ascending: false });
 
-      threads?.forEach((thread) => {
-        const card = document.createElement("div");
-        card.className = "thread-card";
-        const isAdmin = profile?.isadmin === true;
-        const selfBtns = isAdmin || thread.createdby === username
-          ? `<button id="deleteGamingThreadBtn${thread.id}" class="thread-delete-btn" style="margin-top:6px;">Delete Thread</button>`
-          : "";
+      (threads || []).forEach(thread => {
+        const card = document.createElement('div');
+        card.className = 'thread-card';
+        const isAdmin = profile?.is_admin === true;
+        const selfBtns = isAdmin
+          ? `<button id="deleteGamingThreadBtn_${thread.id}" class="thread-delete-btn" style="margin-top:6px;">Delete Thread</button>`
+          : (thread.created_by === username
+            ? `<button id="deleteGamingThreadBtn_${thread.id}" class="thread-delete-btn" style="margin-top:6px;">Delete Thread</button>`
+            : '');
 
         card.innerHTML = `
           <div class="thread-title">${thread.title}</div>
-          <div class="thread-desc">${thread.description || ""}</div>
-          <div class="thread-meta">Created by ${thread.createdby || "Unknown"} • ${new Date(thread.createdat).toLocaleString()}</div>
+          <div class="thread-desc">${thread.description || ''}</div>
+          <div class="thread-meta">Created by ${thread.created_by || 'Unknown'} • ${new Date(thread.created_at).toLocaleString()}</div>
           ${selfBtns}
         `;
         card.onclick = () => openGamingThread(thread);
         messagesEl.appendChild(card);
 
-        const btn = card.querySelector(`#deleteGamingThreadBtn${thread.id}`);
+        const btn = card.querySelector(`#deleteGamingThreadBtn_${thread.id}`);
         if (btn) {
           btn.onclick = async (e) => {
             e.stopPropagation();
-            if (!confirm("Delete this gaming thread and all replies?")) return;
-            const { error } = await supabase.from("threads").delete().eq("id", thread.id);
-            if (error) return alert("Failed to delete thread.");
+            if (!confirm('Delete this gaming thread and all replies?')) return;
+            const { error } = await supabase.from('threads').delete().eq('id', thread.id);
+            if (error) return alert('Failed to delete thread.');
             await loadGamingThreads();
           };
         }
       });
 
       if (!threads || !threads.length) {
-        const empty = document.createElement("div");
-        empty.className = "message";
-        empty.textContent = "No gaming threads yet. Click Create Thread to start one!";
+        const empty = document.createElement('div');
+        empty.className = 'message';
+        empty.textContent = 'No gaming threads yet. Click Create Thread to start one!';
         messagesEl.appendChild(empty);
       }
 
-      id("messageInput").placeholder = "Discuss games in threads only.";
+      $('messageInput').placeholder = 'Discuss games in threads only';
     }
 
-    async function openGamingThread(thread) {
+    async function openGamingThread(thread){
       currentThreadId = thread.id;
       currentThread = thread;
-      const messagesEl = id("messages");
-      messagesEl.innerHTML = "";
+      $('messages').innerHTML = '';
 
       const profile = await loadProfile(username);
-      const isAdmin = profile?.isadmin === true;
-      const isCreator = thread.createdby === username;
+      const isAdmin = profile?.is_admin === true;
 
-      let deleteBtnHtml = "";
-      if (isAdmin || isCreator) deleteBtnHtml = `<button id="deleteGamingThreadBtn" class="thread-delete-btn">Delete Thread</button>`;
+      const top = document.createElement('div');
+      top.className = 'thread-topbar';
+      const isCreator = thread.created_by === username || isAdmin;
 
-      const top = document.createElement("div");
-      top.className = "thread-topbar";
+      let deleteBtnHtml = '';
+      if (isAdmin || isCreator) {
+        deleteBtnHtml = `<button id="deleteGamingThreadBtn" class="thread-delete-btn">Delete Thread</button>`;
+      }
+
       top.innerHTML = `
-        <button id="backToGamingThreadsBtn" class="thread-back-btn">Back</button>
+        <button id="backToGamingThreadsBtn" class="thread-back-btn">← Back</button>
         ${deleteBtnHtml}
         <button id="gamingThreadTitleBtn" class="thread-create-btn" disabled>${thread.title}</button>
       `;
-      messagesEl.appendChild(top);
+      $('messages').appendChild(top);
 
-      const info = document.createElement("div");
-      info.className = "message";
-      info.innerHTML = `<div><strong>${thread.title}</strong></div><div style="color:#b9bbbe;margin-top:4px;">${thread.description || "Game discussion thread."}</div>`;
-      messagesEl.appendChild(info);
+      const info = document.createElement('div');
+      info.className = 'message';
+      info.innerHTML = `<div><strong>${thread.title}</strong></div><div style="color:#b9bbbe;margin-top:4px">${thread.description || 'Game discussion thread.'}</div>`;
+      $('messages').appendChild(info);
 
-      backToGamingThreadsBtn.onclick = loadGamingThreads;
+      $('backToGamingThreadsBtn').onclick = () => loadGamingThreads();
 
-      const deleteBtn = id("deleteGamingThreadBtn");
+      const deleteBtn = $('deleteGamingThreadBtn');
       if (deleteBtn) {
         deleteBtn.onclick = async () => {
-          if (!confirm("Delete this gaming thread and all replies?")) return;
-          const { error } = await supabase.from("threads").delete().eq("id", thread.id);
-          if (error) return alert("Failed to delete thread.");
+          if (!confirm('Delete this gaming thread and all replies?')) return;
+          const { error } = await supabase.from('threads').delete().eq('id', thread.id);
+          if (error) return alert('Failed to delete thread.');
           await loadGamingThreads();
         };
       }
 
-      id("messageInput").placeholder = `Chat about ${thread.title}`;
+      $('messageInput').placeholder = `Chat about ${thread.title}`;
 
       const { data: msgs } = await supabase
-        .from("messages")
-        .select("username,text,createdat")
-        .eq("channel", "gaming")
-        .eq("threadid", thread.id)
-        .order("createdat", { ascending: true });
+        .from('messages')
+        .select('username,text,created_at')
+        .eq('channel', 'gaming')
+        .eq('thread_id', thread.id)
+        .order('created_at', { ascending: true });
 
-      const avatars = await getAvatars((msgs || []).map((m) => m.username));
-      msgs?.forEach((m) => {
-        const div = document.createElement("div");
-        div.className = "message";
+      for (const m of (msgs || [])) {
+        const { avatar, showCrown } = await getAvatarAndCrown(m.username);
+        const crown = showCrown ? `<img src="crown.png" class="crown-overlay" />` : '';
+        const div = document.createElement('div');
+        div.className = 'message';
         div.innerHTML = `
           <div class="message-row">
-            <img class="avatar" src="${avatars[m.username]}" alt="avatar">
-            <div class="message-content">
-              <span class="username">${m.username}</span> ${String(m.text).replace(/\n/g, "<br>")}
+            <div class="avatar-container">
+              <img class="avatar" src="${avatar}" alt="avatar">
+              ${crown}
             </div>
-          </div>
-        `;
-        setAvatarFallback(div.querySelector("img.avatar"), m.username);
-        messagesEl.appendChild(div);
-      });
+            <div class="message-content">
+              <span class="username">${m.username}</span> ${String(m.text).replace(/\\\\n/g, '<br>') || '.'}
+            </div>
+          </div>`;
+        setAvatarFallback(div.querySelector('.avatar'), m.username);
+        $('messages').appendChild(div);
+      }
 
-      if (!msgs || !msgs.length) await addMessage("System", "No messages in this gaming thread yet.");
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      if (!msgs || !msgs.length) {
+        await addMessage('System', 'No messages in this gaming thread yet.');
+      }
+
+      $('messages').scrollTop = $('messages').scrollHeight;
     }
 
-    async function openSuggestionThread(thread) {
+    async function openSuggestionThread(thread){
       currentThreadId = thread.id;
       currentThread = thread;
-      const messagesEl = id("messages");
-      messagesEl.innerHTML = "";
+      $('messages').innerHTML = '';
 
       const profile = await loadProfile(username);
-      const isAdmin = profile?.isadmin === true;
-      const isCreator = thread.createdby === username;
+      const isAdmin = profile?.is_admin === true;
 
-      let deleteBtnHtml = "";
-      if (isAdmin || isCreator) deleteBtnHtml = `<button id="deleteThreadBtn" class="thread-delete-btn">Delete Thread</button>`;
+      const top = document.createElement('div');
+      top.className = 'thread-topbar';
+      const isCreator = thread.created_by === username || isAdmin;
 
-      const top = document.createElement("div");
-      top.className = "thread-topbar";
+      let deleteBtnHtml = '';
+      if (isAdmin || isCreator) {
+        deleteBtnHtml = `<button id="deleteThreadBtn" class="thread-delete-btn">Delete Thread</button>`;
+      }
+
       top.innerHTML = `
         <button id="backToSuggestionsBtn" class="thread-back-btn">Back</button>
         ${deleteBtnHtml}
         <button id="threadTitleBtn" class="thread-create-btn" disabled>${thread.title}</button>
       `;
-      messagesEl.appendChild(top);
+      $('messages').appendChild(top);
 
-      const info = document.createElement("div");
-      info.className = "message";
-      info.innerHTML = `<div><strong>${thread.title}</strong></div><div style="color:#b9bbbe;margin-top:4px;">${thread.description || "No description."}</div>`;
-      messagesEl.appendChild(info);
+      const info = document.createElement('div');
+      info.className = 'message';
+      info.innerHTML = `<div><strong>${thread.title}</strong></div><div style="color:#b9bbbe;margin-top:4px">${thread.description || 'No description.'}</div>`;
+      $('messages').appendChild(info);
 
-      backToSuggestionsBtn.onclick = () => switchChannel("suggestions");
+      $('backToSuggestionsBtn').onclick = () => switchChannel('suggestions');
 
-      const deleteBtn = id("deleteThreadBtn");
+      const deleteBtn = $('deleteThreadBtn');
       if (deleteBtn) {
         deleteBtn.onclick = async () => {
-          if (!confirm("Delete this thread and all its replies?")) return;
-          const { error } = await supabase.from("threads").delete().eq("id", thread.id);
-          if (error) return alert("Failed to delete thread.");
+          if (!confirm('Delete this thread and all its replies?')) return;
+          const { error } = await supabase.from('threads').delete().eq('id', thread.id);
+          if (error) return alert('Failed to delete thread.');
           currentThreadId = null;
           currentThread = null;
           await loadSuggestions();
         };
       }
 
-      id("messageInput").placeholder = `Reply to ${thread.title}`;
+      $('messageInput').placeholder = `Reply to: ${thread.title}`;
 
       const { data: msgs } = await supabase
-        .from("messages")
-        .select("username,text,createdat")
-        .eq("channel", "suggestions")
-        .eq("threadid", thread.id)
-        .order("createdat", { ascending: true });
+        .from('messages')
+        .select('username,text,created_at')
+        .eq('channel', 'suggestions')
+        .eq('thread_id', thread.id)
+        .order('created_at', { ascending: true });
 
-      const avatars = await getAvatars((msgs || []).map((m) => m.username));
-      msgs?.forEach((m) => {
-        const div = document.createElement("div");
-        div.className = "message";
+      for (const m of (msgs || [])) {
+        const { avatar, showCrown } = await getAvatarAndCrown(m.username);
+        const crown = showCrown ? `<img src="crown.png" class="crown-overlay" />` : '';
+        const div = document.createElement('div');
+        div.className = 'message';
         div.innerHTML = `
           <div class="message-row">
-            <img class="avatar" src="${avatars[m.username]}" alt="avatar">
-            <div class="message-content">
-              <span class="username">${m.username}</span> ${String(m.text).replace(/\n/g, "<br>")}
+            <div class="avatar-container">
+              <img class="avatar" src="${avatar}" alt="avatar">
+              ${crown}
             </div>
-          </div>
-        `;
-        setAvatarFallback(div.querySelector("img.avatar"), m.username);
-        messagesEl.appendChild(div);
-      });
+            <div class="message-content">
+              <span class="username">${m.username}</span> ${String(m.text).replace(/\\\\n/g, '<br>') || '.'}
+            </div>
+          </div>`;
+        setAvatarFallback(div.querySelector('.avatar'), m.username);
+        $('messages').appendChild(div);
+      }
 
-      if (!msgs || !msgs.length) await addMessage("System", "No replies yet.");
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      if (!msgs || !msgs.length) {
+        await addMessage('System', 'No replies yet.');
+      }
+
+      $('messages').scrollTop = $('messages').scrollHeight;
     }
 
-    async function sendMessage() {
-      const text = id("messageInput").value.trim();
-      if (!text) return;
-
-      if (currentChannel === "stats" || currentChannel === "shop") return alert("You cannot send messages in this channel!");
+    async function sendMessage(){
+      const text = $('messageInput').value.trim();
+      if(!text) return;
+      if(currentChannel==='stats' || currentChannel==='shop') return alert('You cannot send messages in this channel!');
 
       const profile = await loadProfile(username);
-      if (!profile?.isadmin && profile?.muteduntil && profile?.muted) return alert(`You are muted! ${profile.mutereason || "No reason specified"}`);
 
-      if (currentChannel === "gaming" && currentThreadId) {
-        const message = { channel: currentChannel, threadid: currentThreadId, username, text, createdat: new Date().toISOString() };
-        const { error } = await supabase.from("messages").insert(message);
-        if (error) return alert("Message failed to send.");
+      // Muted check (you can also add time‑based mute here via muted_until)
+      if (!profile?.is_admin && (profile?.muted_until || profile?.muted === true)) {
+        return alert(`You are muted!\\n\\nReason: ${profile.mute_reason || 'No reason specified'}`);
+      }
+
+      if (currentChannel === 'gaming' && currentThreadId) {
+        const message = {
+          channel: currentChannel,
+          thread_id: currentThreadId,
+          username,
+          text,
+          created_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase.from('messages').insert(message);
+        if (error) return alert('Message failed to send.');
         profile.xp = (profile.xp || 0) + 1;
         profile.coins = (profile.coins || 0) + 1;
-        await saveProfile(profile);
-        id("messageInput").value = "";
+        await saveProfile(profilyoure);
+        $('messageInput').value = '';
         await openGamingThread(currentThread);
         return;
       }
 
-      if (currentChannel === "suggestions" && currentThreadId) {
-        const message = { channel: currentChannel, threadid: currentThreadId, username, text, createdat: new Date().toISOString() };
-        const { error } = await supabase.from("messages").insert(message);
-        if (error) return alert("Message failed to send.");
+      if (currentChannel === 'suggestions' && currentThreadId) {
+        const message = {
+          channel: currentChannel,
+          thread_id: currentThreadId,
+          username,
+          text,
+          created_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase.from('messages').insert(message);
+        if (error) return alert('Message failed to send.');
         profile.xp = (profile.xp || 0) + 1;
         profile.coins = (profile.coins || 0) + 1;
         await saveProfile(profile);
-        id("messageInput").value = "";
+        $('messageInput').value = '';
         await openSuggestionThread(currentThread);
         return;
       }
 
-      if (currentChannel === "suggestions" && !currentThreadId) return alert("Open a suggestion thread first, then reply inside it.");
-      if (currentChannel === "gaming" && !currentThreadId) return alert("Click Games Chat first to discuss games in threads, or play a game!");
+      if (currentChannel === 'suggestions' && !currentThreadId) {
+        return alert('Open a suggestion thread first, then reply inside it.');
+      }
 
-      const message = { channel: currentChannel, username, text, createdat: new Date().toISOString(), threadid: null };
-      const { error } = await supabase.from("messages").insert(message);
-      if (error) return alert("Message failed to send.");
+      if (currentChannel === 'gaming' && !currentThreadId) {
+        return alert('Click "Games Chat" first to discuss games in threads, or play a game!');
+      }
+
+      const message = {
+        channel: currentChannel,
+        username,
+        text,
+        created_at: new Date().toISOString(),
+        thread_id: null
+      };
+
+      const { error } = await supabase.from('messages').insert(message);
+      if (error) return alert('Message failed to send.');
+
       profile.xp = (profile.xp || 0) + 1;
       profile.coins = (profile.coins || 0) + 1;
       await saveProfile(profile);
 
-      id("messageInput").value = "";
+      $('messageInput').value='';
+
       const avatar = await avatarFor(username);
-      const safe = String(text).replace(/\n/g, "<br>");
-      const div = document.createElement("div");
-      div.className = "message";
+      const crown = (profile.has_crown && profile.crown_equipped) ? `<img src="crown.png" class="crown-overlay" />` : '';
+      const safe = String(text).replace(/\\\\n/g, '<br>');
+      const div = document.createElement('div');
+      div.className = 'message';
       div.innerHTML = `
         <div class="message-row">
-          <img class="avatar" src="${avatar}" alt="avatar">
+          <div class="avatar-container">
+            <img class="avatar" src="${avatar}" alt="avatar">
+            ${crown}
+          </div>
           <div class="message-content">
             <span class="username">${username}</span> ${safe}
           </div>
-        </div>
-      `;
-      setAvatarFallback(div.querySelector("img.avatar"), username);
-      id("messages").appendChild(div);
-      id("messages").scrollTop = id("messages").scrollHeight;
+        </div>`;
+      setAvatarFallback(div.querySelector('.avatar'), username);
+      $('messages').appendChild(div);
+      $('messages').scrollTop = $('messages').scrollHeight;
     }
 
-    async function loadStats(token) {
+    async function loadStats(token = loadToken){
       const p = await loadProfile(username);
-      if (token !== loadToken || currentChannel !== "stats") return;
-      id("messages").innerHTML = "";
-      await addMessage(
-        "System",
-        `\n<strong>Level</strong> ${p.level || 1}\n<strong>XP</strong> ${p.xp || 0}\n<strong>XP to next level</strong> ${Math.max((p.level || 1) * 100 - (p.xp || 0), 0)}\n<strong>Coins</strong> ${p.coins || 0}\n<strong>Admin</strong> ${p.isadmin ? "Yes" : "No"}`
-      );
+      if (token !== loadToken || currentChannel !== 'stats') return;
+      $('messages').innerHTML='';
+      await addMessage('System', `${p.username}<br><strong>Level:</strong> ${p.level}<br><strong>XP:</strong> ${p.xp}<br><strong>XP to next level:</strong> ${Math.max((p.level||1)*100-(p.xp||0),0)}<br><strong>Coins:</strong> ${p.coins}<br><strong>Admin:</strong> ${p.is_admin ? 'Yes' : 'No'}`, await avatarFor(p.username));
     }
 
-    async function loadShop(token) {
-      if (token !== loadToken || currentChannel !== "shop") return;
-      id("messages").innerHTML = `<div class="message"><div style="text-align:center;color:#b9bbbe;">Games are now in gaming! Shop coming soon...</div></div>`;
+    async function loadShop(token = loadToken){
+      if (token !== loadToken || currentChannel !== 'shop') return;
+      const p = await loadProfile(username);
+      $('messages').innerHTML = `<div class="game-card"><h4>Crown</h4><button id="buyCrownBtn" class="shop-btn">${p.has_crown ? 'Owned' : 'Buy (5 coins)'}</button><button id="equipCrownBtn" class="shop-btn">${p.crown_equipped ? 'Unequip' : 'Equip'}</button></div>`;
+      $('buyCrownBtn').onclick = async () => { if(p.coins<5) return alert('Need 5 coins'); p.coins-=5; p.has_crown=true; await saveProfile(p); loadShop(); };
+      $('equipCrownBtn').onclick = async () => { p.crown_equipped = !p.crown_equipped; await saveProfile(p); loadShop(); };
     }
 
-    function openOverlay(innerHTML) {
-      const old = document.querySelector(".overlay");
-      if (old) old.remove();
-      const o = document.createElement("div");
-      o.className = "overlay";
-      o.innerHTML = `<div class="overlay-box"><button class="close-btn">×</button>${innerHTML}</div>`;
-      o.querySelector(".close-btn").onclick = () => o.remove();
+    function openOverlay(innerHTML){
+      const old=document.querySelector('.overlay'); if(old) old.remove();
+      const o=document.createElement('div'); o.className='overlay';
+      o.innerHTML=`<div class="overlay-box"><button class="close-btn">×</button>${innerHTML}</div>`;
+      o.querySelector('.close-btn').onclick=()=>o.remove();
       document.body.appendChild(o);
       return o;
     }
 
-    async function openProfileEditor() {
+    async function openProfileEditor(){
       const profile = await loadProfile(username);
       const o = openOverlay(`
-        <div style="padding:18px;color:#fff;overflow:auto;height:100%;box-sizing:border-box;">
-          <h3 style="margin-top:0;">Edit Profile</h3>
+        <div style="padding:18px;color:#fff;overflow:auto;height:100%;box-sizing:border-box">
+          <h3 style="margin-top:0">Edit Profile</h3>
           <div class="modal-field">
             <label>Username</label>
             <input id="peUsername" type="text" value="${profile.username || username}">
           </div>
           <div class="modal-field">
             <label>Profile Picture URL</label>
-            <input id="pePfp" type="text" value="${profile.profilepicture || ""}" placeholder="Image URL">
+            <input id="pePfp" type="text" value="${profile.profile_picture || ''}" placeholder="Image URL">
           </div>
           <div class="modal-field">
             <label>Brush Color</label>
-            <input id="peBrushColor" type="text" value="${profile.pfpbrushcolor || defaultProfile.pfpbrushcolor}">
+            <input id="peBrushColor" type="text" value="${profile.pfp_brush_color || defaultProfile.pfp_brush_color}">
           </div>
           <div class="modal-field">
             <label>Brush Width</label>
-            <input id="peBrushWidth" type="number" min="1" max="50" value="${profile.pfpbrushwidth || defaultProfile.pfpbrushwidth}">
+            <input id="peBrushWidth" type="number" min="1" max="50" value="${profile.pfp_brush_width || defaultProfile.pfp_brush_width}">
           </div>
           <div class="modal-field">
             <label>Background Color</label>
-            <input id="peBgColor" type="text" value="${profile.pfpbgcolor || defaultProfile.pfpbgcolor}">
+            <input id="peBgColor" type="text" value="${profile.pfp_bg_color || defaultProfile.pfp_bg_color}">
           </div>
-          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
             <button id="saveProfileBtn">Save</button>
             <button id="cancelProfileBtn" class="thread-delete-btn">Cancel</button>
           </div>
         </div>
       `);
 
-      o.querySelector("#cancelProfileBtn").onclick = () => o.remove();
+      o.querySelector('#cancelProfileBtn').onclick = () => o.remove();
 
-      o.querySelector("#saveProfileBtn").onclick = async () => {
-        const newUsername = o.querySelector("#peUsername").value.trim();
-        const profilepicture = o.querySelector("#pePfp").value.trim();
-        const pfpbrushcolor = o.querySelector("#peBrushColor").value.trim();
-        const pfpbrushwidth = Number(o.querySelector("#peBrushWidth").value);
-        const pfpbgcolor = o.querySelector("#peBgColor").value.trim();
+      o.querySelector('#saveProfileBtn').onclick = async () => {
+        const newUsername = o.querySelector('#peUsername').value.trim();
+        const profile_picture = o.querySelector('#pePfp').value.trim();
+        const pfp_brush_color = o.querySelector('#peBrushColor').value.trim();
+        const pfp_brush_width = Number(o.querySelector('#peBrushWidth').value);
+        const pfp_bg_color = o.querySelector('#peBgColor').value.trim();
 
-        if (!newUsername) return alert("Username is required.");
+        if (!newUsername) return alert('Username is required.');
 
         const updated = {
           ...defaultProfile,
           ...profile,
           username: newUsername,
-          profilepicture: profilepicture || null,
-          pfpbrushcolor: pfpbrushcolor || defaultProfile.pfpbrushcolor,
-          pfpbrushwidth: Number.isFinite(pfpbrushwidth) ? pfpbrushwidth : defaultProfile.pfpbrushwidth,
-          pfpbgcolor: pfpbgcolor || defaultProfile.pfpbgcolor
+          profile_picture: profile_picture || null,
+          pfp_brush_color: pfp_brush_color || defaultProfile.pfp_brush_color,
+          pfp_brush_width: Number.isFinite(pfp_brush_width) ? pfp_brush_width : defaultProfile.pfp_brush_width,
+          pfp_bg_color: pfp_bg_color || defaultProfile.pfp_bg_color
         };
 
-        await supabase.from("profiles").upsert(updated);
+        await supabase.from('profiles').upsert(updated);
 
         if (newUsername !== username) {
           const oldUsername = username;
           username = newUsername;
-          localStorage.setItem("username", newUsername);
+          localStorage.setItem('username', newUsername);
           avatarCache.delete(oldUsername);
         }
 
@@ -1029,48 +828,46 @@
       };
     }
 
-    function openSnakeFullscreen() {
-      openOverlay(`<iframe src="https://frogdafish.github.io/Snek/"></iframe>`);
+    function parseRGB(colorStr) {
+      if (!colorStr || !colorStr.includes('rgb')) return {r:255, g:255, b:255};
+      const match = colorStr.match(/rgb\\((\\d+),(\\d+),(\\d+)\\)/);
+      return { r: parseInt(match?.[1] || '255'), g: parseInt(match?.[2] || '255'), b: parseInt(match?.[3] || '255') };
     }
 
-    function openSlopeFullscreen() {
-      openOverlay(`<iframe src="slope.html"></iframe>`);
-    }
+    function createPfpEditor(profile){ }
+    function openProfileEditorLegacy(){ }
 
-    function openBartFullscreen() {
-      openOverlay(`<iframe src="bartblast.html"></iframe>`);
-    }
+    function openSnakeFullscreen(){ openOverlay(`<iframe src="https://frogdafish.github.io/Snek"></iframe>`); }
+    function openSlopeFullscreen(){ openOverlay(`<iframe src="slope.html"></iframe>`); }
+    function openBartFullscreen(){ openOverlay(`<iframe src="bartblast.html"></iframe>`); }
+    function openSuperLiquidSoccerFullscreen(){ openOverlay(`<iframe src="https://blueskywrld.github.io/game3/"></iframe>`); }
 
-    function openSuperLiquidSoccerFullscreen() {
-      openOverlay(`<iframe src="https://blueskywrld.github.io/game3/"></iframe>`);
-    }
-
-    async function openAdminPanel() {
+    async function openAdminPanel(){
       const profile = await loadProfile(username);
-      if (!profile?.isadmin) return alert("Admin access only.");
+      if (!profile?.is_admin) return alert('Admin access only.');
 
       const { data: profiles } = await supabase
-        .from("profiles")
-        .select("username, level, xp, coins, muted, muteduntil, mutereason, isadmin")
-        .order("username", { ascending: true });
+        .from('profiles')
+        .select('username, level, xp, coins, muted, muted_until, mute_reason, is_admin')
+        .order('username', { ascending: true });
 
       const o = openOverlay(`
         <div class="admin-list">
-          <h3 style="margin-top:0;">Admin Panel</h3>
+          <h3 style="margin-top:0">Admin Panel</h3>
           <div id="adminUsersWrap"></div>
         </div>
       `);
 
-      const wrap = o.querySelector("#adminUsersWrap");
-      profiles.forEach((p) => {
-        const user = document.createElement("div");
-        user.className = "admin-user";
+      const wrap = o.querySelector('#adminUsersWrap');
+      (profiles || []).forEach(p => {
+        const user = document.createElement('div');
+        user.className = 'admin-user';
         user.innerHTML = `
           <div class="admin-user-info">
             <div class="admin-user-name">${p.username}</div>
             <div class="admin-user-stats">
-              Level ${p.level || 1} • XP ${p.xp || 0} • Coins ${p.coins || 0} • Admin ${p.isadmin ? "Yes" : "No"}
-              ${p.muted || p.muteduntil ? `<br>Muted: ${p.mutereason || "No reason"}` : ""}
+              Level ${p.level || 1} • XP ${p.xp || 0} • Coins ${p.coins || 0} • Admin ${p.is_admin ? 'Yes' : 'No'}
+              ${p.muted || p.muted_until ? `<br>Muted: ${p.mute_reason || 'No reason'}` : ''}
             </div>
           </div>
           <div class="admin-user-actions">
@@ -1083,9 +880,9 @@
         wrap.appendChild(user);
       });
 
-      o.querySelectorAll('[data-action="xp"]').forEach((btn) => btn.onclick = async () => {
+      o.querySelectorAll('[data-action="xp"]').forEach(btn => btn.onclick = async () => {
         const target = btn.dataset.user;
-        const amount = Number(prompt("How much XP to add?"));
+        const amount = Number(prompt('How much XP to add?'));
         if (!Number.isFinite(amount)) return;
         const p = await loadProfile(target);
         p.xp = (p.xp || 0) + amount;
@@ -1093,9 +890,9 @@
         await openAdminPanel();
       });
 
-      o.querySelectorAll('[data-action="coins"]').forEach((btn) => btn.onclick = async () => {
+      o.querySelectorAll('[data-action="coins"]').forEach(btn => btn.onclick = async () => {
         const target = btn.dataset.user;
-        const amount = Number(prompt("How many coins to add?"));
+        const amount = Number(prompt('How many coins to add?'));
         if (!Number.isFinite(amount)) return;
         const p = await loadProfile(target);
         p.coins = (p.coins || 0) + amount;
@@ -1103,36 +900,40 @@
         await openAdminPanel();
       });
 
-      o.querySelectorAll('[data-action="mute"]').forEach((btn) => btn.onclick = async () => {
+      o.querySelectorAll('[data-action="mute"]').forEach(btn => btn.onclick = async () => {
         const target = btn.dataset.user;
-        const reason = prompt("Mute reason?") || "No reason specified";
         const p = await loadProfile(target);
+        if (p.muted) return alert('User is already muted. Use unmute first.');
+        const reason = prompt('Mute reason?') || 'No reason specified';
         p.muted = true;
-        p.mutereason = reason;
-        p.muteduntil = null;
+        p.mute_reason = reason;
+        p.muted_until = null;
         await saveProfile(p);
         await openAdminPanel();
       });
 
-      o.querySelectorAll('[data-action="unmute"]').forEach((btn) => btn.onclick = async () => {
+      o.querySelectorAll('[data-action="unmute"]').forEach(btn => btn.onclick = async () => {
         const target = btn.dataset.user;
         const p = await loadProfile(target);
+        if (p.mute_reason === 'No name given, contact a dev via email or in school to be unmuted.') return alert('This user cannot be unmuted from the admin menu.');
         p.muted = false;
-        p.muteduntil = null;
-        p.mutereason = null;
+        p.muted_until = null;
+        p.mute_reason = null;
         await saveProfile(p);
         await openAdminPanel();
       });
     }
 
-    async function openCreateThreadModal() {
+    async function openCreateThreadModal(){
       const profile = await loadProfile(username);
-      if (!profile?.isadmin && profile?.muteduntil && profile?.muted) return alert(`You are muted! ${profile.mutereason || "No reason specified"}`);
+      if (!profile?.is_admin && (profile?.muted_until || profile?.muted === true)) {
+        return alert(`You are muted!\\n\\nReason: ${profile.mute_reason || 'No reason specified'}`);
+      }
 
-      const channelName = currentChannel === "gaming" ? "Gaming" : "Suggestion";
+      const channelName = currentChannel === 'gaming' ? 'Gaming' : 'Suggestion';
       const o = openOverlay(`
-        <div style="padding:18px;color:#fff;">
-          <h3 style="margin-top:0;">Create ${channelName} Thread</h3>
+        <div style="padding:18px;color:#fff">
+          <h3 style="margin-top:0">Create ${channelName} Thread</h3>
           <div class="modal-field">
             <label>Title</label>
             <input id="threadTitle" type="text" placeholder="Thread title">
@@ -1141,70 +942,78 @@
             <label>Description</label>
             <textarea id="threadDesc" placeholder="Thread description"></textarea>
           </div>
-          <div style="display:flex;gap:8px;margin-top:12px;">
+          <div style="display:flex;gap:8px;margin-top:12px">
             <button id="createThreadBtn">Create</button>
             <button id="cancelThreadBtn" class="thread-delete-btn">Cancel</button>
           </div>
         </div>
       `);
 
-      o.querySelector("#cancelThreadBtn").onclick = () => o.remove();
+      o.querySelector('#cancelThreadBtn').onclick = () => o.remove();
 
-      o.querySelector("#createThreadBtn").onclick = async () => {
-        const title = o.querySelector("#threadTitle").value.trim().replace(/\n/g, "");
-        const description = o.querySelector("#threadDesc").value.trim();
-        if (!title) return alert("Title is required.");
+      o.querySelector('#createThreadBtn').onclick = async () => {
+        const title = o.querySelector('#threadTitle').value.trim().replace(/\\s+/g, ' ');
+        const description = o.querySelector('#threadDesc').value.trim();
 
-        const { error } = await supabase.from("threads").insert({
+        if (!title) return alert('Title is required.');
+
+        const { error } = await supabase.from('threads').insert({
           channel: currentChannel,
           title,
           description,
-          createdby: username,
-          createdat: new Date().toISOString()
+          created_by: username,
+          created_at: new Date().toISOString()
         });
 
         if (error) {
-          if (error.code === "23505") return alert(`You already made a ${channelName.toLowerCase()} thread with that exact title.`);
-          return alert("Failed to create thread.");
+          if (error.code === '23505') return alert(`You already made a ${channelName.toLowerCase()} thread with that exact title.`);
+          return alert('Failed to create thread.');
         }
 
         o.remove();
-        if (currentChannel === "suggestions") await loadSuggestions();
-        else if (currentChannel === "gaming") await loadGamingThreads();
+        if (currentChannel === 'suggestions') {
+          await loadSuggestions();
+        } else if (currentChannel === 'gaming') {
+          await loadGamingThreads();
+        }
       };
     }
 
-    async function switchChannel(channel) {
+    function switchChannel(channel){
       currentChannel = channel;
       currentThreadId = null;
       currentThread = null;
       renderChannelHeader(channel);
-      id("messages").innerHTML = "";
+      $('messages').innerHTML = '';
       const token = ++loadToken;
-
-      if (channel === "stats") await loadStats(token);
-      else if (channel === "shop") await loadShop(token);
-      else if (channel === "suggestions") await loadSuggestions(token);
-      else if (channel === "gaming") await loadGaming(token);
-      else await loadMessages(channel, token);
+      if(channel === 'stats') loadStats(token);
+      else if(channel === 'shop') loadShop(token);
+      else if(channel === 'suggestions') loadSuggestions(token);
+      else if(channel === 'gaming') loadGaming(token);
+      else loadMessages(channel, token);
     }
 
-    id("sendBtn").addEventListener("click", sendMessage);
-    id("messageInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
-    id("editProfileBtn").addEventListener("click", openProfileEditor);
-    id("adminPanelBtn").addEventListener("click", openAdminPanel);
+    $('sendBtn').addEventListener('click', sendMessage);
+    $('messageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendMessage(); });
+    $('editProfileBtn').addEventListener('click', openProfileEditor);
+    $('adminPanelBtn').addEventListener('click', openAdminPanel);
+    document.querySelectorAll('.channel').forEach(el=>el.addEventListener('click', ()=>switchChannel(el.dataset.channel)));
 
-    document.querySelectorAll(".channel").forEach((el) => {
-      el.addEventListener("click", () => switchChannel(el.dataset.channel));
-    });
-
-    renderChannelHeader("general");
+    renderChannelHeader('general');
     await ensureProfile();
     await refreshAdminButton();
     await refreshAdminVisibility();
-    await loadMessages("general", ++loadToken);
+    await loadMessages('general');
+  
+    document.querySelectorAll('.channel').forEach(el => {
+      el.addEventListener('click', () => switchChannel(el.dataset.channel));
+    });
+
+    renderChannelHeader('general');
+    await ensureProfile();
+    await refreshAdminButton();
+    await refreshAdminVisibility();
+    await loadMessages('general');
   </script>
 </body>
 </html>
