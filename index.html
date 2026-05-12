@@ -25,7 +25,7 @@
     .crown-overlay { position: absolute; top: -14px; left: -12px; width: 28px; height: 28px; pointer-events: none; z-index: 10; transform: rotate(-15deg); }
     .message-content{line-height:1.35;word-break:break-word;white-space:normal}
     .username{font-weight:bold;color:#7289da}
-    .input-area{padding:10px 15px;background:#40444b;display:flex;gap:10px}
+    .input-area{padding:10px 15px;background:#40444b;display:flex;gap:10px;align-items:center}
     input{flex:1;padding:10px;border-radius:4px;border:none;background:#303339;color:#fff;outline:none}
     button{padding:10px 16px;border-radius:4px;border:none;background:#7289da;color:#fff}
     .typing-indicator{font-size:12px;color:#b9bbbe;margin:0 0 8px 15px;font-style:italic}
@@ -60,6 +60,12 @@
     .game-card{padding:15px;background:#2f3136;border:1px solid #202225;border-radius:8px;text-align:center}
     .game-card h4{margin:0 0 10px;font-size:16px;color:#fff}
     .game-card button{width:100%;margin:5px 0}
+    .private-panel{position:fixed;right:18px;bottom:78px;width:260px;max-height:300px;overflow:auto;background:#2f3136;border:1px solid #202225;border-radius:8px;padding:12px;display:none;z-index:1000;box-shadow:0 10px 25px rgba(0,0,0,.35)}
+    .private-panel h4{margin:0 0 10px;font-size:14px}
+    .private-user{width:100%;text-align:left;background:#40444b;margin:5px 0;padding:8px 10px;border:none;border-radius:4px}
+    .private-user.active{background:#43b581}
+    .private-meta{font-size:12px;color:#b9bbbe;margin-top:6px}
+    .private-badge{font-size:11px;background:#5865f2;padding:2px 6px;border-radius:999px;margin-left:6px}
   </style>
 </head>
 <body>
@@ -82,8 +88,15 @@
     <div class="input-area">
       <input id="messageInput" placeholder="Message #general" />
       <button id="sendBtn">Send</button>
+      <button id="privateChatBtn" style="padding:10px 12px;background:#43b581;">Private</button>
     </div>
     <div id="typingIndicator" class="typing-indicator"></div>
+  </div>
+
+  <div class="private-panel" id="privatePanel">
+    <h4>Private Chat</h4>
+    <div id="privateUserList"></div>
+    <div class="private-meta" id="privateStatus">Choose someone to start.</div>
   </div>
 
   <script type="module">
@@ -100,6 +113,8 @@
     let currentThread = null;
     let username = localStorage.getItem('username') || '';
     let loadToken = 0;
+    let selectedPrivateUser = null;
+    let privateMessagesLoaded = false;
     const avatarCache = new Map();
 
     const defaultProfile = {
@@ -200,7 +215,7 @@
       div.className='message';
       const { showCrown } = await getAvatarAndCrown(user);
       const crown = showCrown ? `<img src="crown.png" class="crown-overlay" />` : '';
-      const safe = String(text).replace(/\\\\n/g,'<br>');
+      const safe = String(text).replace(/\\n/g,'<br>');
       div.innerHTML=`<div class="message-row"><div class="avatar-container"><img class="avatar" src="${avatarUrl||await avatarFor(user)}" alt="avatar">${crown}</div><div class="message-content"><span class="username">${user}</span> ${safe}</div></div>`;
       const img = div.querySelector('.avatar');
       setAvatarFallback(img, user);
@@ -247,6 +262,7 @@
               </div>
               <div class="message-content">
                 <span class="username">${m.username}</span> ${safe}
+                <div style="font-size:11px;color:#b9bbbe;margin-top:4px;">${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
               </div>
             </div>
           </div>`;
@@ -255,7 +271,94 @@
       messagesEl.querySelectorAll('.avatar').forEach((img, i) => setAvatarFallback(img, msgs[i].username));
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
-async function loadSuggestions(token = ++loadToken){
+
+    async function loadPrivateUsers() {
+      const panel = $('privatePanel');
+      const list = $('privateUserList');
+      const status = $('privateStatus');
+      panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+
+      if (panel.style.display !== 'block') return;
+
+      const { data, error } = await supabase.from('profiles').select('username').order('username', { ascending: true });
+      if (error) {
+        list.innerHTML = '';
+        status.textContent = 'Failed to load users.';
+        return;
+      }
+
+      const users = (data || []).map(u => u.username).filter(u => u && u !== username);
+      list.innerHTML = '';
+
+      if (!users.length) {
+        status.textContent = 'No other users online.';
+        return;
+      }
+
+      status.textContent = selectedPrivateUser ? `Selected: ${selectedPrivateUser}` : 'Choose someone to start.';
+      users.forEach(user => {
+        const btn = document.createElement('button');
+        btn.className = 'private-user' + (selectedPrivateUser === user ? ' active' : '');
+        btn.innerHTML = `${user}${selectedPrivateUser === user ? ' <span class="private-badge">Selected</span>' : ''}`;
+        btn.onclick = () => {
+          selectedPrivateUser = user;
+          $('messageInput').placeholder = `Private message to ${selectedPrivateUser}`;
+          status.textContent = `Selected: ${selectedPrivateUser}`;
+          panel.style.display = 'none';
+          privateMessagesLoaded = false;
+        };
+        list.appendChild(btn);
+      });
+    }
+
+    async function loadPrivateConversation() {
+      if (!selectedPrivateUser) return;
+      const messagesEl = $('messages');
+      messagesEl.innerHTML = '';
+
+      const pair1 = `${username}__${selectedPrivateUser}`;
+      const pair2 = `${selectedPrivateUser}__${username}`;
+
+      const { data: msgs } = await supabase
+        .from('private_messages')
+        .select('sender,receiver,text,created_at')
+        .or(`and(sender.eq.${username},receiver.eq.${selectedPrivateUser}),and(sender.eq.${selectedPrivateUser},receiver.eq.${username})`)
+        .order('created_at', { ascending: true });
+
+      if (!msgs || !msgs.length) {
+        const div = document.createElement('div');
+        div.className = 'message';
+        div.textContent = 'No private messages yet.';
+        messagesEl.appendChild(div);
+        return;
+      }
+
+      for (const m of msgs) {
+        const mine = m.sender === username;
+        const { avatar } = await getAvatarAndCrown(m.sender);
+        const safe = String(m.text).replace(/\n/g, '<br>');
+        const div = document.createElement('div');
+        div.className = 'message';
+        div.innerHTML = `
+          <div class="message-row" style="justify-content:${mine ? 'flex-end' : 'flex-start'}">
+            <div class="avatar-container">
+              <img class="avatar" src="${avatar}" alt="avatar">
+            </div>
+            <div class="message-content">
+              <span class="username">${m.sender}</span> ${safe}
+              <div style="font-size:11px;color:#b9bbbe;margin-top:4px;">${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+          </div>
+        `;
+        setAvatarFallback(div.querySelector('.avatar'), m.sender);
+        messagesEl.appendChild(div);
+      }
+
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      privateMessagesLoaded = true;
+    }
+
+    async function loadSuggestions(token = ++loadToken){
       currentThreadId = null;
       currentThread = null;
       const messagesEl = $('messages');
@@ -548,7 +651,8 @@ async function loadSuggestions(token = ++loadToken){
               ${crown}
             </div>
             <div class="message-content">
-              <span class="username">${m.username}</span> ${String(m.text).replace(/\\\\n/g, '<br>') || '.'}
+              <span class="username">${m.username}</span> ${String(m.text).replace(/\\n/g, '<br>') || '.'}
+              <div style="font-size:11px;color:#b9bbbe;margin-top:4px;">${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
           </div>`;
         setAvatarFallback(div.querySelector('.avatar'), m.username);
@@ -626,7 +730,8 @@ async function loadSuggestions(token = ++loadToken){
               ${crown}
             </div>
             <div class="message-content">
-              <span class="username">${m.username}</span> ${String(m.text).replace(/\\\\n/g, '<br>') || '.'}
+              <span class="username">${m.username}</span> ${String(m.text).replace(/\\n/g, '<br>') || '.'}
+              <div style="font-size:11px;color:#b9bbbe;margin-top:4px;">${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
           </div>`;
         setAvatarFallback(div.querySelector('.avatar'), m.username);
@@ -640,16 +745,59 @@ async function loadSuggestions(token = ++loadToken){
       $('messages').scrollTop = $('messages').scrollHeight;
     }
 
+    async function sendPrivateMessage(text) {
+      if (!selectedPrivateUser) {
+        alert('Select a person for private chat first.');
+        return;
+      }
+
+      const created_at = new Date().toISOString();
+
+      const { error } = await supabase.from('private_messages').insert({
+        sender: username,
+        receiver: selectedPrivateUser,
+        text,
+        created_at
+      });
+
+      if (error) {
+        alert('Private message failed to send.');
+        return;
+      }
+
+      const div = document.createElement('div');
+      const avatar = await avatarFor(username);
+      div.className = 'message';
+      div.innerHTML = `
+        <div class="message-row">
+          <div class="avatar-container">
+            <img class="avatar" src="${avatar}" alt="avatar">
+          </div>
+          <div class="message-content">
+            <span class="username">${username}</span> ${String(text).replace(/\\n/g, '<br>')}
+            <div style="font-size:11px;color:#b9bbbe;margin-top:4px;">${new Date(created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+          </div>
+        </div>`;
+      setAvatarFallback(div.querySelector('.avatar'), username);
+      $('messages').appendChild(div);
+      $('messages').scrollTop = $('messages').scrollHeight;
+    }
+
     async function sendMessage(){
       const text = $('messageInput').value.trim();
       if(!text) return;
       if(currentChannel==='stats' || currentChannel==='shop') return alert('You cannot send messages in this channel!');
 
+      if (selectedPrivateUser) {
+        await sendPrivateMessage(text);
+        $('messageInput').value = '';
+        return;
+      }
+
       const profile = await loadProfile(username);
 
-      // Muted check (you can also add time‑based mute here via muted_until)
       if (!profile?.is_admin && (profile?.muted_until || profile?.muted === true)) {
-        return alert(`You are muted!\\n\\nReason: ${profile.mute_reason || 'No reason specified'}`);
+        return alert(`You are muted!\n\nReason: ${profile.mute_reason || 'No reason specified'}`);
       }
 
       if (currentChannel === 'gaming' && currentThreadId) {
@@ -665,7 +813,7 @@ async function loadSuggestions(token = ++loadToken){
         if (error) return alert('Message failed to send.');
         profile.xp = (profile.xp || 0) + 1;
         profile.coins = (profile.coins || 0) + 1;
-        await saveProfile(profilyoure);
+        await saveProfile(profile);
         $('messageInput').value = '';
         await openGamingThread(currentThread);
         return;
@@ -717,7 +865,7 @@ async function loadSuggestions(token = ++loadToken){
 
       const avatar = await avatarFor(username);
       const crown = (profile.has_crown && profile.crown_equipped) ? `<img src="crown.png" class="crown-overlay" />` : '';
-      const safe = String(text).replace(/\\\\n/g, '<br>');
+      const safe = String(text).replace(/\n/g, '<br>');
       const div = document.createElement('div');
       div.className = 'message';
       div.innerHTML = `
@@ -728,6 +876,7 @@ async function loadSuggestions(token = ++loadToken){
           </div>
           <div class="message-content">
             <span class="username">${username}</span> ${safe}
+            <div style="font-size:11px;color:#b9bbbe;margin-top:4px;">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
           </div>
         </div>`;
       setAvatarFallback(div.querySelector('.avatar'), username);
@@ -746,7 +895,7 @@ async function loadSuggestions(token = ++loadToken){
       if (token !== loadToken || currentChannel !== 'shop') return;
       const p = await loadProfile(username);
       $('messages').innerHTML = `<div class="game-card"><h4>Crown</h4><button id="buyCrownBtn" class="shop-btn">${p.has_crown ? 'Owned' : 'Buy (5 coins)'}</button><button id="equipCrownBtn" class="shop-btn">${p.crown_equipped ? 'Unequip' : 'Equip'}</button></div>`;
-      $('buyCrownBtn').onclick = async () => { if(p.coins<5) return alert('Need 5 coins'); p.coins-=5; p.has_crown=true; await saveProfile(p); loadShop(); };
+      $('buyCrownBtn').onclick = async () => { if((p.coins||0)<5) return alert('Need 5 coins'); p.coins-=5; p.has_crown=true; await saveProfile(p); loadShop(); };
       $('equipCrownBtn').onclick = async () => { p.crown_equipped = !p.crown_equipped; await saveProfile(p); loadShop(); };
     }
 
@@ -828,15 +977,6 @@ async function loadSuggestions(token = ++loadToken){
       };
     }
 
-    function parseRGB(colorStr) {
-      if (!colorStr || !colorStr.includes('rgb')) return {r:255, g:255, b:255};
-      const match = colorStr.match(/rgb\\((\\d+),(\\d+),(\\d+)\\)/);
-      return { r: parseInt(match?.[1] || '255'), g: parseInt(match?.[2] || '255'), b: parseInt(match?.[3] || '255') };
-    }
-
-    function createPfpEditor(profile){ }
-    function openProfileEditorLegacy(){ }
-
     function openSnakeFullscreen(){ openOverlay(`<iframe src="https://frogdafish.github.io/Snek"></iframe>`); }
     function openSlopeFullscreen(){ openOverlay(`<iframe src="slope.html"></iframe>`); }
     function openBartFullscreen(){ openOverlay(`<iframe src="bartblast.html"></iframe>`); }
@@ -915,7 +1055,6 @@ async function loadSuggestions(token = ++loadToken){
       o.querySelectorAll('[data-action="unmute"]').forEach(btn => btn.onclick = async () => {
         const target = btn.dataset.user;
         const p = await loadProfile(target);
-        if (p.mute_reason === 'No name given, contact a dev via email or in school to be unmuted.') return alert('This user cannot be unmuted from the admin menu.');
         p.muted = false;
         p.muted_until = null;
         p.mute_reason = null;
@@ -927,7 +1066,7 @@ async function loadSuggestions(token = ++loadToken){
     async function openCreateThreadModal(){
       const profile = await loadProfile(username);
       if (!profile?.is_admin && (profile?.muted_until || profile?.muted === true)) {
-        return alert(`You are muted!\\n\\nReason: ${profile.mute_reason || 'No reason specified'}`);
+        return alert(`You are muted!\n\nReason: ${profile.mute_reason || 'No reason specified'}`);
       }
 
       const channelName = currentChannel === 'gaming' ? 'Gaming' : 'Suggestion';
@@ -952,7 +1091,7 @@ async function loadSuggestions(token = ++loadToken){
       o.querySelector('#cancelThreadBtn').onclick = () => o.remove();
 
       o.querySelector('#createThreadBtn').onclick = async () => {
-        const title = o.querySelector('#threadTitle').value.trim().replace(/\\s+/g, ' ');
+        const title = o.querySelector('#threadTitle').value.trim().replace(/\s+/g, ' ');
         const description = o.querySelector('#threadDesc').value.trim();
 
         if (!title) return alert('Title is required.');
@@ -980,6 +1119,8 @@ async function loadSuggestions(token = ++loadToken){
     }
 
     function switchChannel(channel){
+      selectedPrivateUser = null;
+      $('privatePanel').style.display = 'none';
       currentChannel = channel;
       currentThreadId = null;
       currentThread = null;
@@ -997,17 +1138,8 @@ async function loadSuggestions(token = ++loadToken){
     $('messageInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendMessage(); });
     $('editProfileBtn').addEventListener('click', openProfileEditor);
     $('adminPanelBtn').addEventListener('click', openAdminPanel);
+    $('privateChatBtn').addEventListener('click', loadPrivateUsers);
     document.querySelectorAll('.channel').forEach(el=>el.addEventListener('click', ()=>switchChannel(el.dataset.channel)));
-
-    renderChannelHeader('general');
-    await ensureProfile();
-    await refreshAdminButton();
-    await refreshAdminVisibility();
-    await loadMessages('general');
-  
-    document.querySelectorAll('.channel').forEach(el => {
-      el.addEventListener('click', () => switchChannel(el.dataset.channel));
-    });
 
     renderChannelHeader('general');
     await ensureProfile();
